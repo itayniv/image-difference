@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import './App.css'
 import ImageDropZone from './Components/ImageDropZone'
+import FaceDetectorDemo from './Components/FaceDetectorDemo'
 
 function App() {
-  const [count, setCount] = useState(0)
   const [uploadedAIFiles, setUploadedAIFiles] = useState<File[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
@@ -18,6 +18,15 @@ function App() {
     console.log('Uploaded AI files:', files)
   }
 
+  const analyizeImages = (originalFiles: File[], aiFiles: File[]) => {
+    // Pass images to your analysis pipeline here
+    console.log('Analyize similarity invoked with:', {
+      originalFiles,
+      aiFiles,
+    })
+    // e.g., analyzeSimilarity(originalFiles, aiFiles)
+  }
+
   return (
     <>      
     <div className="flex flex-row gap-4">
@@ -28,18 +37,6 @@ function App() {
           onImagesUploaded={handleImagesUploaded}
           maxFiles={10}
         />
-        {uploadedFiles.length > 0 && (
-          <div style={{ marginTop: '1rem', textAlign: 'left' }}>
-            <h3>Files ready for processing:</h3>
-            <ul>
-              {uploadedFiles.map((file, index) => (
-                <li key={index}>
-                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
       <div className="card">
         <h2>AI Image Drop Zone</h2>
@@ -47,19 +44,22 @@ function App() {
           onImagesUploaded={handleAIImagesUploaded}
           maxFiles={10}
         />
-        {uploadedAIFiles.length > 0 && (
-          <div style={{ marginTop: '1rem', textAlign: 'left' }}>
-            <h3>Files ready for processing:</h3>
-            <ul>
-              {uploadedAIFiles.map((file, index) => (
-                <li key={index}>
-                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
+    </div>
+
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={() => analyizeImages(uploadedFiles, uploadedAIFiles)}
+        className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+        disabled={uploadedFiles.length === 0 || uploadedAIFiles.length === 0}
+      >
+        analyize similarity
+      </button>
+    </div>
+
+    <div className="mt-8">
+      <FaceDetectorDemo />
     </div>
       
     </>

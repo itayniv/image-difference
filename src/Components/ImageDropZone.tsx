@@ -98,52 +98,52 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="drop-zone-content">
-          <div className="upload-icon">📁</div>
-          <h3>Drag & Drop Images Here</h3>
-          <p>or click to browse files</p>
-          <input
-            type="file"
-            multiple
-            accept={acceptedTypes.join(',')}
-            onChange={handleFileInput}
-            className="file-input"
-          />
-          <div className="file-info">
-            <small>
-              Supported formats: JPEG, PNG, GIF, WebP<br/>
-              Maximum {maxFiles} files
-            </small>
+        {uploadedImages.length === 0 ? (
+          <div className="drop-zone-content">
+            <div className="upload-icon">📁</div>
+            <h3>Drag & Drop Images Here</h3>
+            <p>or click to browse files</p>
+            <input
+              type="file"
+              multiple
+              accept={acceptedTypes.join(',')}
+              onChange={handleFileInput}
+              className="file-input"
+            />
+            <div className="file-info">
+              <small>
+                Supported formats: JPEG, PNG, GIF, WebP<br/>
+                Maximum {maxFiles} files
+              </small>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {uploadedImages.length > 0 && (
-        <div className="uploaded-images">
-          <div className="images-header">
-            <h4>Uploaded Images ({uploadedImages.length})</h4>
-            <button onClick={clearAll} className="clear-all-btn">
-              Clear All
-            </button>
-          </div>
-          <div className="image-previews">
-            {previews.map((preview, index) => (
-              <div key={index} className="image-preview">
-                <img src={preview} alt={`Preview ${index + 1}`} />
-                <div className="image-overlay">
-                  <span className="image-name">{uploadedImages[index].name}</span>
-                  <button
-                    onClick={() => removeImage(index)}
-                    className="remove-btn"
-                  >
-                    ×
-                  </button>
+        ) : (
+          <div style={{ width: '100%' }}>
+            <div className="images-header">
+              <h4>Uploaded Images ({uploadedImages.length})</h4>
+              <button onClick={clearAll} className="clear-all-btn">
+                Clear All
+              </button>
+            </div>
+            <div className="image-previews">
+              {previews.map((preview, index) => (
+                <div key={index} className="image-preview">
+                  <img src={preview} alt={`Preview ${index + 1}`} />
+                  <div className="image-overlay">
+                    <span className="image-name">{uploadedImages[index].name}</span>
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="remove-btn"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
