@@ -1,4 +1,6 @@
 // Helper functions for image similarity analysis
+import type { AttributeSpec } from './Attributes';
+import type { ProcessResult } from './faceLandmarker';
 
 export interface VectorResult {
   fileName: string;
@@ -11,10 +13,16 @@ export interface SimilarityResult {
   similarity: number;
 }
 
+export interface EmbeddingExtractor {
+  (file: File, options: { pooling: 'mean'; normalize: boolean }): Promise<{
+    data: Float32Array | number[] | ArrayBuffer;
+  } | Float32Array | number[] | ArrayBuffer>;
+}
+
 // Get a single normalized embedding vector for each image file
 export const extractVectorsFromFiles = async (
   files: File[], 
-  extractor: any
+  extractor: EmbeddingExtractor
 ): Promise<VectorResult[]> => {
   const results: VectorResult[] = [];
   for (const file of files) {
@@ -29,6 +37,75 @@ export const extractVectorsFromFiles = async (
   }
   console.log('Extracted vectors:', results);
   return results;
+};
+
+// Convert face detection results (head shot crops) to File[] for use with extractVectorsFromFiles
+export const convertChipsToFiles = async (
+  results: Array<{
+    id: string;
+    imageURL: string;
+    imageSize: { width: number; height: number };
+    landmarksPerFace: { x: number; y: number }[][];
+    chipURLs: string[];
+    sourceName: string;
+  }>,
+  options: {
+    includeAllFaces?: boolean; // If true, includes all detected faces; if false, only the first face per image
+  } = {}
+): Promise<File[]> => {
+  const { includeAllFaces = false } = options;
+  
+  const filePromises: Promise<File>[] = [];
+  
+  results.forEach((result) => {
+    // Determine which chip URLs to process
+    const urlsToProcess = includeAllFaces 
+      ? result.chipURLs 
+      : result.chipURLs.slice(0, 1);
+    
+    urlsToProcess.forEach((url, faceIndex) => {
+      const fileName = includeAllFaces 
+        ? `${result.sourceName}_face_${faceIndex}.png`
+        : `${result.sourceName}_face.png`;
+      
+      const filePromise = fetch(url)
+        .then(response => response.blob())
+        .then(blob => new File([blob], fileName, { type: blob.type }));
+      
+      filePromises.push(filePromise);
+    });
+  });
+  
+  return Promise.all(filePromises);
+};
+
+// Alternative version that works directly with ProcessResult objects
+export const convertProcessResultsToFiles = (
+  processResults: ProcessResult[],
+  options: {
+    includeAllFaces?: boolean; // If true, includes all detected faces; if false, only the first face per image
+  } = {}
+): File[] => {
+  const { includeAllFaces = false } = options;
+  
+  const files: File[] = [];
+  
+  processResults.forEach((result) => {
+    const facesToProcess = includeAllFaces 
+      ? result.faces 
+      : result.faces.slice(0, 1);
+    
+    facesToProcess.forEach((face, faceIndex) => {
+      const fileName = includeAllFaces 
+        ? `${result.file.name}_face_${faceIndex}.png`
+        : `${result.file.name}_face.png`;
+      
+      const file = new File([face.chip.blob], fileName, { type: 'image/png' });
+      files.push(file);
+    });
+  });
+  
+  return files;
 };
 
 // Compute cosine similarity between two vectors
@@ -52,7 +129,7 @@ export const cosineSimilarity = (a: number[], b: number[]): number => {
 export const compareOriginalToAI = async (
   original: File[], 
   ai: File[], 
-  extractor: any
+  extractor: EmbeddingExtractor
 ): Promise<SimilarityResult[]> => {
   const [origVecs, aiVecs] = await Promise.all([
     extractVectorsFromFiles(original, extractor),
@@ -64,7 +141,16 @@ export const compareOriginalToAI = async (
     ai: aiVecs[i].fileName,
     similarity: cosineSimilarity(origVecs[i].vector, aiVecs[i].vector),
   }));
+  
   console.log('Cosine similarities:', results);
 
   return results;
 };
+
+
+
+export function compilePrompts(attrs: AttributeSpec[]): Record<string, string[]> {
+    const byAttr: Record<string, string[]> = {};
+    attrs.forEach(a => { byAttr[a.key] = a.options.map(opt => a.template(opt)); });
+    return byAttr;
+  }

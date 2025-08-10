@@ -168,20 +168,24 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
               </button>
             </div>
             <div className="image-previews">
-              {previews.map((preview, index) => (
-                <div key={index} className="image-preview">
-                  <img src={preview} alt={`Preview ${index + 1}`} />
-                  <div className="image-overlay">
-                    <span className="image-name">{uploadedImages[index].name}</span>
-                    <button
-                      onClick={() => removeImage(index)}
-                      className="remove-btn"
-                    >
-                      ×
-                    </button>
+              {uploadedImages.map((file, index) => {
+                const preview = previews[index];
+                if (!preview) return null; // guard against async mismatch
+                return (
+                  <div key={`${file.name}-${index}`} className="image-preview">
+                    <img src={preview} alt={`Preview ${index + 1}`} />
+                    <div className="image-overlay">
+                      <span className="image-name">{file.name}</span>
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="remove-btn"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -189,5 +193,6 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
     </div>
   );
 };
+
 
 export default ImageDropZone; 

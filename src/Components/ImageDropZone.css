@@ -113,24 +113,41 @@
 }
 
 .image-previews {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+  position: relative;
+  height: 180px; /* show a stacked/fanned set of thumbnails */
+  width: 100%;
+  margin: 0 auto;
 }
 
 .image-preview {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  width: 200px;
   border-radius: 8px;
   overflow: hidden;
   background-color: #f9fafb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* Center the card then apply per-item offset/rotation via CSS variables */
+  transform: translateX(calc(-50% + var(--offset, 0px))) rotate(var(--rotate, 0deg));
 }
 
 .image-preview:hover {
-  transform: translateY(-2px);
+  /* preserve base transform while lifting the hovered card */
+  transform: translateX(calc(-50% + var(--offset, 0px))) rotate(var(--rotate, 0deg)) translateY(-2px) scale(1.02);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 20;
 }
+
+/* Fan the stack - supports up to 8 items (maxFiles is 5 by default) */
+.image-preview:nth-child(1) { --offset: -48px; --rotate: -4deg; z-index: 1; }
+.image-preview:nth-child(2) { --offset: -24px; --rotate: 2deg;  z-index: 2; }
+.image-preview:nth-child(3) { --offset:   0px; --rotate: -1deg; z-index: 3; }
+.image-preview:nth-child(4) { --offset:  24px; --rotate: 3deg;  z-index: 4; }
+.image-preview:nth-child(5) { --offset:  48px; --rotate: -2deg; z-index: 5; }
+.image-preview:nth-child(6) { --offset:  72px; --rotate: 1deg;  z-index: 6; }
+.image-preview:nth-child(7) { --offset:  96px; --rotate: -3deg; z-index: 7; }
+.image-preview:nth-child(8) { --offset: 120px; --rotate: 2deg;  z-index: 8; }
 
 .image-preview img {
   width: 100%;
