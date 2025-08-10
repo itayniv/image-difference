@@ -1,0 +1,8 @@
+---
+description: lookup transformers docs
+globs: 
+alwaysApply: false
+---
+
+
+https://huggingface.co/docs/transformers.js/api/pipelines#module_pipelines.ImageFeatureExtractionPipeline

@@ -1,20 +1,62 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './ImageDropZone.css';
 
 interface ImageDropZoneProps {
   onImagesUploaded?: (files: File[]) => void;
   maxFiles?: number;
   acceptedTypes?: string[];
+  files?: File[]; // External files to display
 }
 
 const ImageDropZone: React.FC<ImageDropZoneProps> = ({
   onImagesUploaded,
   maxFiles = 5,
-  acceptedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  acceptedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  files = []
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+
+  // Sync with external files prop and generate previews
+  useEffect(() => {
+    if (files.length > 0) {
+      setUploadedImages(files);
+      
+      // Generate previews for external files
+      const generatePreviews = async () => {
+        const newPreviews: string[] = [];
+        for (const file of files) {
+          try {
+            const url = URL.createObjectURL(file);
+            newPreviews.push(url);
+          } catch (error) {
+            console.error('Failed to create preview for', file.name, error);
+          }
+        }
+        setPreviews(newPreviews);
+      };
+      
+      generatePreviews();
+    } else if (uploadedImages.length > 0 && files.length === 0) {
+      // Clear if external files are removed
+      setUploadedImages([]);
+      setPreviews([]);
+    }
+
+    // Cleanup URLs when component unmounts or files change
+    return () => {
+      if (files.length > 0) {
+        previews.forEach(url => {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            // URL might already be revoked
+          }
+        });
+      }
+    };
+  }, [files]); // Only depend on files prop
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

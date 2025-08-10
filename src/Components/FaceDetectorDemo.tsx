@@ -1,11 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./FaceDetectorDemo.css";
-import img9157 from "../assets/ref_photos/IMG_9157 Medium.jpeg";
-import img9158 from "../assets/ref_photos/IMG_9158 Medium.jpeg";
-import img9159 from "../assets/ref_photos/IMG_9159 Medium.jpeg";
-import img9160 from "../assets/ref_photos/IMG_9160 Medium.jpeg";
-import img9161 from "../assets/ref_photos/IMG_9161 Medium.jpeg";
-import img9162 from "../assets/ref_photos/IMG_9162 Medium.jpeg";
 
 import type {
   FaceDetector as FaceDetectorType,
@@ -19,11 +13,17 @@ const WASM_PATH =
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite";
 
-export default function FaceDetectorDemo() {
+type FaceDetectorDemoProps = {
+  files: File[];
+  onComplete?: () => void;
+};
+
+export default function FaceDetectorDemo({ files, onComplete }: FaceDetectorDemoProps) {
   const [isReady, setIsReady] = useState(false);
   const faceDetectorRef = useRef<FaceDetectorType | null>(null);
+  const imageRefs = useRef<Array<HTMLImageElement | null>>([]);
+  const processedSetRef = useRef<Set<number>>(new Set());
   
-
   // Lazy import to avoid SSR/build hiccups and keep wasm on CDN
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +42,7 @@ export default function FaceDetectorDemo() {
           runningMode: "IMAGE",
         });
         if (!cancelled) {
+          console.log("FaceDetector initialized");
           faceDetectorRef.current = detector;
           setIsReady(true);
         } else {
@@ -61,15 +62,15 @@ export default function FaceDetectorDemo() {
     };
   }, []);
 
-  const clearOverlays = useCallback((container: HTMLElement) => {
-    const selector = ".highlighter, .info, .key-point";
-    container.querySelectorAll(selector).forEach((el) => el.remove());
-  }, []);
 
   const displayImageDetections = useCallback(
     (detections: DetectionType[], imgEl: HTMLImageElement) => {
       const container = imgEl.parentElement as HTMLElement;
-      const ratio = imgEl.height / imgEl.naturalHeight;
+      // Use rendered size to compute precise X/Y scale factors
+      const renderedWidth = imgEl.clientWidth;
+      const renderedHeight = imgEl.clientHeight;
+      const ratioX = renderedWidth / imgEl.naturalWidth;
+      const ratioY = renderedHeight / imgEl.naturalHeight;
 
       detections.forEach((detection) => {
         const bbox = detection.boundingBox;
@@ -81,16 +82,16 @@ export default function FaceDetectorDemo() {
         p.innerText = `Confidence: ${Math.round(
           Number(detection.categories?.[0]?.score || 0) * 100
         )}% .`;
-        p.style.left = `${bbox.originX * ratio}px`;
-        p.style.top = `${bbox.originY * ratio - 30}px`;
-        p.style.width = `${bbox.width * ratio - 10}px`;
+        p.style.left = `${bbox.originX * ratioX}px`;
+        p.style.top = `${bbox.originY * ratioY - 30}px`;
+        p.style.width = `${bbox.width * ratioX - 10}px`;
 
         const highlighter = document.createElement("div");
         highlighter.className = "highlighter";
-        highlighter.style.left = `${bbox.originX * ratio}px`;
-        highlighter.style.top = `${bbox.originY * ratio}px`;
-        highlighter.style.width = `${bbox.width * ratio}px`;
-        highlighter.style.height = `${bbox.height * ratio}px`;
+        highlighter.style.left = `${bbox.originX * ratioX}px`;
+        highlighter.style.top = `${bbox.originY * ratioY}px`;
+        highlighter.style.width = `${bbox.width * ratioX}px`;
+        highlighter.style.height = `${bbox.height * ratioY}px`;
 
         container.appendChild(highlighter);
         container.appendChild(p);
@@ -98,8 +99,8 @@ export default function FaceDetectorDemo() {
         detection.keypoints?.forEach((keypoint) => {
           const keypointEl = document.createElement("span");
           keypointEl.className = "key-point";
-          keypointEl.style.top = `${keypoint.y * imgEl.height - 3}px`;
-          keypointEl.style.left = `${keypoint.x * imgEl.width - 3}px`;
+          keypointEl.style.top = `${keypoint.y * renderedHeight - 3}px`;
+          keypointEl.style.left = `${keypoint.x * renderedWidth - 3}px`;
           container.appendChild(keypointEl);
         });
       });
@@ -107,19 +108,56 @@ export default function FaceDetectorDemo() {
     []
   );
 
-  const onImageClick = useCallback(async (e: React.MouseEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const container = img.parentElement as HTMLElement;
-    clearOverlays(container);
+  // Create object URLs for incoming files and clean them up when files change
+  const objectUrls = useMemo(() => {
+    return files.map((file) => ({
+      url: URL.createObjectURL(file),
+      name: file.name,
+    }));
+  }, [files]);
 
+  useEffect(() => {
+    return () => {
+      objectUrls.forEach(({ url }) => URL.revokeObjectURL(url));
+      processedSetRef.current.clear();
+    };
+  }, [objectUrls]);
+
+  const detectOnImage = useCallback((img: HTMLImageElement | null, idx?: number) => {
+    if (!img) return;
     const faceDetector = faceDetectorRef.current;
     if (!faceDetector) return;
 
     const result = faceDetector.detect(img);
     displayImageDetections(result.detections as DetectionType[], img);
-  }, [clearOverlays, displayImageDetections]);
+    if (typeof idx === "number") {
+      processedSetRef.current.add(idx);
+    }
+  }, [displayImageDetections]);
 
-  const images = [img9157, img9158, img9159, img9160, img9161, img9162];
+  // Run detection when the detector is ready and images are loaded
+  useEffect(() => {
+    if (!isReady) return;
+    imageRefs.current.forEach((img, idx) => {
+      if (img && img.complete && img.naturalWidth > 0) {
+        detectOnImage(img, idx);
+      }
+    });
+    // If all processed, notify
+    if (
+      objectUrls.length > 0 &&
+      processedSetRef.current.size === objectUrls.length &&
+      onComplete
+    ) {
+      onComplete();
+    }
+  }, [isReady, objectUrls, detectOnImage, onComplete]);
+
+  const onImageLoad = useCallback((idx: number) => (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (!isReady) return; // will run via effect when ready
+    detectOnImage(img, idx);
+  }, [detectOnImage, isReady]);
 
   return (
     <div className="face-detector-demo">
@@ -127,19 +165,20 @@ export default function FaceDetectorDemo() {
       {!isReady && <p>Loading face detector...</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {images.map((src, idx) => (
+        {objectUrls.map(({ url, name }, idx) => (
           <div key={idx} className="image-container relative inline-block">
             <img
-              src={src}
-              alt={`ref ${idx}`}
-              className="cursor-pointer max-w-full h-auto"
-              onClick={onImageClick}
+              ref={(el) => {
+                imageRefs.current[idx] = el;
+              }}
+              src={url}
+              alt={name || `image ${idx}`}
+              className="max-w-full h-auto"
+              onLoad={onImageLoad(idx)}
             />
           </div>
         ))}
       </div>
-
-      {/* Webcam functionality removed as requested */}
     </div>
   );
 }

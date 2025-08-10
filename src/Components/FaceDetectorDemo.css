@@ -8,6 +8,7 @@
   border-radius: 4px;
   box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.3);
   pointer-events: none;
+  box-sizing: border-box; /* ensure border doesn't shift box position */
 }
 
 .face-detector-demo .info {
@@ -27,6 +28,11 @@
   background: #00ff88;
   border-radius: 50%;
   pointer-events: none;
+}
+
+/* Remove baseline whitespace and ensure the img doesn't introduce gaps */
+.face-detector-demo .image-container img {
+  display: block;
 }
 
 /* Webcam styles removed */
