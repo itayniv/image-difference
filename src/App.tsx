@@ -13,7 +13,7 @@ env.useBrowserCache = false
 
 
 const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32"; // image model
-// const TEXT_MODEL_ID = "Xenova/clip-vit-base-patch32"; // robust text embedding model
+const TEXT_MODEL_ID = "Xenova/all-MiniLM-L6-v2"; // robust text embedding model
 
 // Import reference images
 import img1 from './assets/ref_photos/IMG_7812.jpeg'
@@ -129,27 +129,27 @@ function App() {
     return imageFeatureExtractorRef.current
   }, [])
 
-  // const getTextFeatureExtractor = useCallback(async () => {
-  //   if (!textFeatureExtractorRef.current) {
-  //     textFeatureExtractorRef.current = await pipeline(
-  //       'feature-extraction',
-  //       TEXT_MODEL_ID,
-  //       {
-  //         progress_callback: (status: any) => {
-  //           try {
-  //             console.log('[text model load]', status);
-  //           } catch {}
-  //         },
-  //       }
-  //     )
-  //   }
-  //   return textFeatureExtractorRef.current
-  // }, [])
+  const getTextFeatureExtractor = useCallback(async () => {
+    if (!textFeatureExtractorRef.current) {
+      textFeatureExtractorRef.current = await pipeline(
+        'feature-extraction',
+        TEXT_MODEL_ID,
+        {
+          progress_callback: (status: any) => {
+            try {
+              console.log('[text model load]', status);
+            } catch {}
+          },
+        }
+      )
+    }
+    return textFeatureExtractorRef.current
+  }, [])
 
 
 
   const embedTexts = useCallback(async (prompts: string[]): Promise<Array<{prompt: string, vector: Float32Array}>> => {
-    // if (!textFeatureExtractorRef.current) await getTextFeatureExtractor();
+    if (!textFeatureExtractorRef.current) await getTextFeatureExtractor();
     const cache = textCacheRef.current; 
     const toRun: string[] = []; 
     const order: number[] = [];
@@ -164,7 +164,7 @@ function App() {
 
     // Generate embeddings for uncached prompts
     if (toRun.length > 0) {
-      // const extractor = await getTextFeatureExtractor();
+      const extractor = await getTextFeatureExtractor();
       for (const prompt of toRun) {
         try {
           const result = await extractor(prompt, { pooling: 'mean', normalize: true });
@@ -201,16 +201,10 @@ function App() {
 
   const analyizeImages = async (originalFiles: File[], aiFiles: File[]) => {
 
-    // const prompts = compilePrompts(ATTRIBUTES)
-    // const textEmbeddings = await embedTexts(Object.values(prompts).flat())
+    const prompts = compilePrompts(ATTRIBUTES)
+    const textEmbeddings = await embedTexts(Object.values(prompts).flat())
 
 
-
-    // Create a feature extraction pipeline for the CLIP model
-    const ttttextractor = await pipeline('feature-extraction', 'Xenova/clip-vit-base-patch32');
-    const textInput = "a photo of a cat";
-    const textEmbedding = await ttttextractor(textInput, { pooling: 'mean', normalize: true });
-    console.log('textEmbedding newwwww:', textEmbedding);
 
     // Combine both sets (or adjust to pass only one set if desired)
     const combined = [...originalFiles, ...aiFiles]
@@ -301,10 +295,10 @@ function App() {
     const initialize = async () => {
       try {
         const imageExtractorPromise = getImageFeatureExtractor()
-        // const textExtractorPromise = getTextFeatureExtractor()
+        const textExtractorPromise = getTextFeatureExtractor()
         const refsPromise = loadReferenceImages()
 
-        await Promise.all([imageExtractorPromise, refsPromise])
+        await Promise.all([imageExtractorPromise, textExtractorPromise, refsPromise])
         setIsExtractorLoading(false)
       } catch (e) {
         console.error('Failed to initialize:', e)
@@ -312,7 +306,7 @@ function App() {
       }
     }
     initialize()
-  }, [getImageFeatureExtractor,  loadReferenceImages])
+  }, [getImageFeatureExtractor, getTextFeatureExtractor, loadReferenceImages])
 
 
   return (
