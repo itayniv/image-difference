@@ -5,9 +5,10 @@ import { pipeline, env } from '@huggingface/transformers'
 import { compareOriginalToAI, extractVectorsFromFiles, convertChipsToFiles, convertProcessResultsToFiles } from './Components/Helpers';
 import { UMAP } from 'umap-js';
 import { processFaceFile } from './Components/faceLandmarker'
-import FaceOverlay from './Components/FaceOverlay'
+import ImageWithLandmarks from './Components/ImageWithLandmarksHelper'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
+import LoadingComponent from './Components/LoadingComponent'
 
 import { AutoTokenizer, CLIPTextModelWithProjection } from '@huggingface/transformers'
 
@@ -17,31 +18,17 @@ env.useBrowserCache = false
 
 const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32"; // image model
 
-// Import reference images
-import img1 from './assets/ref_photos/IMG_7812.jpeg'
-import img2 from './assets/ref_photos/IMG_8236.jpeg'
-import img3 from './assets/ref_photos/IMG_8910 Medium.jpeg'
-import img4 from './assets/ref_photos/IMG_9157 Medium.jpeg'
-import img5 from './assets/ref_photos/IMG_9158 Medium.jpeg'
-import img6 from './assets/ref_photos/IMG_9159 Medium.jpeg'
-import img7 from './assets/ref_photos/IMG_9160 Medium.jpeg'
-import img8 from './assets/ref_photos/IMG_9161 Medium.jpeg'
-import img9 from './assets/ref_photos/IMG_9162 Medium.jpeg'
-import img10 from './assets/ref_photos/itay_ref_01.jpeg'
-import img11 from './assets/ref_photos/itay_ref_02.jpeg'
-import img12 from './assets/ref_photos/itay_ref_03.jpeg'
-import img13 from './assets/ref_photos/itay_ref_04.jpeg'
-import img14 from './assets/ref_photos/itay_ref_05.jpeg'
-import img15 from './assets/ref_photos/itay_cu1.jpeg'
-import img16 from './assets/ref_photos/itay_cu2.jpeg'
-import img17 from './assets/ref_photos/itay_cu3.jpeg'
-import img18 from './assets/ref_photos/itay_cu4.jpeg'
+
+import img01 from './assets/ref_photos/ref_closeup_02.png'
+import img02 from './assets/ref_photos/itay_cu3.jpeg'
+import img03 from './assets/ref_photos/itay_cu2.jpeg'
 
 
 function App() {
   const [uploadedAIFiles, setUploadedAIFiles] = useState<File[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const textCacheRef = useRef<Map<string, Float32Array>>(new Map());
+  const [textEmbeddings, setTextEmbeddings] = useState<Array<{prompt: string, vector: Float32Array}>>([])
 
   // reserved for future face detection UI
 
@@ -66,6 +53,7 @@ function App() {
   const clipTextModelRef = useRef<any | null>(null)
 
   const [isExtractorLoading, setIsExtractorLoading] = useState<boolean>(true)
+  const [loadingProgress, setLoadingProgress] = useState<number>(0)
 
   // Helper to convert imported image URLs to File objects
   const urlToFile = useCallback(async (url: string, filename: string): Promise<File> => {
@@ -79,24 +67,9 @@ function App() {
   const loadReferenceImages = useCallback(async () => {
     try {
       const imageUrls = [
-        // { url: img9, name: 'IMG_9162 Medium.jpeg' },
-        // { url: img1, name: 'IMG_7812.jpeg' },
-        // { url: img2, name: 'IMG_8236.jpeg' },
-        // { url: img4, name: 'IMG_9157 Medium.jpeg' },
-        // { url: img3, name: 'IMG_8910 Medium.jpeg' },
-        // { url: img5, name: 'IMG_9158 Medium.jpeg' },
-        // { url: img6, name: 'IMG_9159 Medium.jpeg' },
-        // { url: img7, name: 'IMG_9160 Medium.jpeg' },
-        // { url: img8, name: 'IMG_9161 Medium.jpeg' },
-        // { url: img10, name: 'IMG_9163 Medium.jpeg' },
-        // { url: img11, name: 'itay_ref_01.jpeg' },
-        // { url: img12, name: 'itay_ref_02.jpeg' },
-        // { url: img13, name: 'itay_ref_03.jpeg' },
-        // { url: img14, name: 'itay_ref_04.jpeg' },
-        // { url: img15, name: 'itay_cu1.jpeg' },
-        { url: img16, name: 'itay_cu2.jpeg' },
-        // { url: img17, name: 'itay_cu3.jpeg' },
-        { url: img18, name: 'itay_cu4.jpeg' }
+
+        { url: img01, name: 'ref_closeup_02.png' },
+        { url: img02, name: 'itay_cu3.jpeg' }
       ]
 
       const files = await Promise.all(
@@ -125,37 +98,32 @@ function App() {
         {
           progress_callback: (status: any) => {
             try {
-              console.log('[image model load]', status);
+              if (status.progress !== undefined) {
+                setLoadingProgress(status.progress); 
+              }
             } catch {}
           },
         }
       )
     }
-
     return imageFeatureExtractorRef.current
   }, [])
 
-  // const getTextFeatureExtractor = useCallback(async () => {
-  //   if (!textFeatureExtractorRef.current) {
-  //     textFeatureExtractorRef.current = await pipeline(
-  //       'feature-extraction',
-  //       CLIP_MODEL_ID,
-  //       {
-  //         progress_callback: (status: any) => {
-  //           try {
-  //             console.log('[text model load]', status);
-  //           } catch {}
-  //         },
-  //       }
-  //     )
-  //   }
-  //   return textFeatureExtractorRef.current
-  // }, [])
+  useEffect(() => {
+    const initialize = async () => {
+      const prompts = compilePrompts(ATTRIBUTES);
+      const textEmbeddings = await embedTexts(Object.values(prompts).flat());
+      setTextEmbeddings(textEmbeddings)
+    }
+    initialize()
+  },[])
 
   const getClipTokenizer = useCallback(async () => {
     if (!clipTokenizerRef.current) {
       console.log('[Loading CLIP tokenizer...]');
+      setLoadingProgress(prev => Math.max(prev, 0.4)); // Start tokenizer at 40%
       clipTokenizerRef.current = await AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
+      setLoadingProgress(prev => Math.max(prev, 0.6)); // Complete tokenizer at 60%
     }
     return clipTokenizerRef.current;
   }, []);
@@ -163,9 +131,11 @@ function App() {
   const getClipTextModel = useCallback(async () => {
     if (!clipTextModelRef.current) {
       console.log('[Loading CLIP text model...]');
+      setLoadingProgress(prev => Math.max(prev, 0.6)); // Start text model at 60%
       clipTextModelRef.current = await CLIPTextModelWithProjection.from_pretrained(
         'Xenova/clip-vit-base-patch32'
       );
+      setLoadingProgress(prev => Math.max(prev, 0.9)); // Complete text model at 90%
     }
     return clipTextModelRef.current;
   }, []);
@@ -230,7 +200,6 @@ function App() {
       }
     }
 
-    console.log('Text embeddings:', cache)
     // Return all prompts with their corresponding vectors (from cache)
     return prompts.map(prompt => ({
       prompt,
@@ -251,11 +220,6 @@ function App() {
   }
 
   const analyizeImages = async (originalFiles: File[], aiFiles: File[]) => {
-
-    const prompts = compilePrompts(ATTRIBUTES)
-    const textEmbeddings = await embedTexts(Object.values(prompts).flat())
-
-
 
     // Combine both sets (or adjust to pass only one set if desired)
     const combined = [...originalFiles, ...aiFiles]
@@ -282,7 +246,6 @@ function App() {
     )
 
 
-
     // Revoke previous URLs to avoid leaks
     previousURLsRef.current.forEach((u) => URL.revokeObjectURL(u))
     previousURLsRef.current = []
@@ -294,11 +257,20 @@ function App() {
     previousURLsRef.current = allURLs
 
     // console.log('Results of all the files:', results)
-    // setOverlays(results)
+    setOverlays(results)
+
+    // run image embedding on the results
+
+
+    // run image embedding on the cropped results
+
+
+    // run text similarity between the results and the text embeddings
+
+    
 
 
     const portraites = results.map(p => p.chipURLs[0])
-
 
 
     // Convert head shot crops (chips) to File[] format for vector extraction
@@ -356,6 +328,7 @@ function App() {
           clipTextModelPromise,
           refsPromise
         ])
+        setLoadingProgress(1.0) // Complete loading
         setIsExtractorLoading(false)
       } catch (e) {
         console.error('Failed to initialize:', e)
@@ -401,34 +374,25 @@ function App() {
 
       <div className="mb-4">
         {isExtractorLoading ? (
-          <div className="text-sm text-gray-600">Loading image feature extractor model...</div>
+          <LoadingComponent 
+            progress={loadingProgress}
+            message="Loading AI models and initializing..."
+            size="medium"
+            className="max-w-md"
+          />
         ) : (
-          <div className="text-sm text-green-700">image featuer extractor model</div>
+          <div className="text-sm text-green-700 font-medium">✓ AI models loaded successfully</div>
         )}
       </div>
       {overlays.length > 0 && (
-        <div className="mt-6 space-y-8">
-          {overlays.map((ov) => (
-            <div key={ov.id} className="border rounded p-4">
-              <div className="mb-2 text-sm text-gray-700">{ov.sourceName}</div>
-              <FaceOverlay
-                imageURL={ov.imageURL}
-                imageSize={ov.imageSize}
-                landmarksPerFace={ov.landmarksPerFace}
-                maxWidth={640}
-              />
-              {ov.chipURLs.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {ov.chipURLs.map((url, idx) => (
-                    <div key={`${ov.id}-chip-${idx}`} className="flex flex-col items-center">
-                      <img src={url} alt={`chip-${idx}`} className="w-full h-auto rounded border" />
-                      <span className="text-xs text-gray-500 mt-1">face {idx + 1}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="mt-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Face Detection Results</h2>
+          <ImageWithLandmarks 
+            results={overlays}
+            maxWidth={640}
+            showChips={true}
+            className="mt-4"
+          />
         </div>
       )}
       {/* reserved for future face detection UI */}
