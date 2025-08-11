@@ -16,7 +16,6 @@ env.useBrowserCache = false
 
 
 const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32"; // image model
-const TEXT_MODEL_ID = "Xenova/all-MiniLM-L6-v2"; // robust text embedding model
 
 // Import reference images
 import img1 from './assets/ref_photos/IMG_7812.jpeg'
@@ -61,6 +60,10 @@ function App() {
   // Cache the image feature extractor so the model loads only once
   const imageFeatureExtractorRef = useRef<any | null>(null)
   const textFeatureExtractorRef = useRef<any | null>(null)
+  
+  // Cache CLIP tokenizer and text model for direct text embedding
+  const clipTokenizerRef = useRef<any | null>(null)
+  const clipTextModelRef = useRef<any | null>(null)
 
   const [isExtractorLoading, setIsExtractorLoading] = useState<boolean>(true)
 
@@ -132,27 +135,44 @@ function App() {
     return imageFeatureExtractorRef.current
   }, [])
 
-  const getTextFeatureExtractor = useCallback(async () => {
-    if (!textFeatureExtractorRef.current) {
-      textFeatureExtractorRef.current = await pipeline(
-        'feature-extraction',
-        CLIP_MODEL_ID,
-        {
-          progress_callback: (status: any) => {
-            try {
-              console.log('[text model load]', status);
-            } catch {}
-          },
-        }
-      )
+  // const getTextFeatureExtractor = useCallback(async () => {
+  //   if (!textFeatureExtractorRef.current) {
+  //     textFeatureExtractorRef.current = await pipeline(
+  //       'feature-extraction',
+  //       CLIP_MODEL_ID,
+  //       {
+  //         progress_callback: (status: any) => {
+  //           try {
+  //             console.log('[text model load]', status);
+  //           } catch {}
+  //         },
+  //       }
+  //     )
+  //   }
+  //   return textFeatureExtractorRef.current
+  // }, [])
+
+  const getClipTokenizer = useCallback(async () => {
+    if (!clipTokenizerRef.current) {
+      console.log('[Loading CLIP tokenizer...]');
+      clipTokenizerRef.current = await AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
     }
-    return textFeatureExtractorRef.current
-  }, [])
+    return clipTokenizerRef.current;
+  }, []);
+
+  const getClipTextModel = useCallback(async () => {
+    if (!clipTextModelRef.current) {
+      console.log('[Loading CLIP text model...]');
+      clipTextModelRef.current = await CLIPTextModelWithProjection.from_pretrained(
+        'Xenova/clip-vit-base-patch32'
+      );
+    }
+    return clipTextModelRef.current;
+  }, []);
 
 
 
   const embedTexts = useCallback(async (prompts: string[]): Promise<Array<{prompt: string, vector: Float32Array}>> => {
-    if (!textFeatureExtractorRef.current) await getTextFeatureExtractor();
     const cache = textCacheRef.current; 
     const toRun: string[] = []; 
     const order: number[] = [];
@@ -166,11 +186,9 @@ function App() {
     });
 
     async function getTextEmbedding(text: string) {
-      // 1) Load tokenizer + *text* submodel of CLIP
-      const tokenizer = await AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
-      const textModel = await CLIPTextModelWithProjection.from_pretrained(
-        'Xenova/clip-vit-base-patch32'
-      );
+      // 1) Get cached tokenizer + text model (loaded only once)
+      const tokenizer = await getClipTokenizer();
+      const textModel = await getClipTextModel();
     
       // 2) Tokenize
       const inputs = await tokenizer(text, {
@@ -218,7 +236,7 @@ function App() {
       prompt,
       vector: cache.get(prompt)!
     }));
-  }, []);
+  }, [getClipTokenizer, getClipTextModel]);
 
 
 
@@ -328,10 +346,16 @@ function App() {
     const initialize = async () => {
       try {
         const imageExtractorPromise = getImageFeatureExtractor()
-        const textExtractorPromise = getTextFeatureExtractor()
+        const clipTokenizerPromise = getClipTokenizer()
+        const clipTextModelPromise = getClipTextModel()
         const refsPromise = loadReferenceImages()
 
-        await Promise.all([imageExtractorPromise, textExtractorPromise, refsPromise])
+        await Promise.all([
+          imageExtractorPromise, 
+          clipTokenizerPromise,
+          clipTextModelPromise,
+          refsPromise
+        ])
         setIsExtractorLoading(false)
       } catch (e) {
         console.error('Failed to initialize:', e)
@@ -339,7 +363,7 @@ function App() {
       }
     }
     initialize()
-  }, [getImageFeatureExtractor, getTextFeatureExtractor, loadReferenceImages])
+  }, [getImageFeatureExtractor, getClipTokenizer, getClipTextModel, loadReferenceImages])
 
 
   return (
