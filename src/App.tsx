@@ -8,6 +8,9 @@ import { processFaceFile } from './Components/faceLandmarker'
 import FaceOverlay from './Components/FaceOverlay'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
+
+import { AutoTokenizer, CLIPTextModelWithProjection } from '@huggingface/transformers'
+
 // Temporarily disable browser cache to avoid using any corrupted ONNX files
 env.useBrowserCache = false
 
@@ -133,7 +136,7 @@ function App() {
     if (!textFeatureExtractorRef.current) {
       textFeatureExtractorRef.current = await pipeline(
         'feature-extraction',
-        TEXT_MODEL_ID,
+        CLIP_MODEL_ID,
         {
           progress_callback: (status: any) => {
             try {
@@ -162,15 +165,45 @@ function App() {
       }
     });
 
+    async function getTextEmbedding(text: string) {
+      // 1) Load tokenizer + *text* submodel of CLIP
+      const tokenizer = await AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
+      const textModel = await CLIPTextModelWithProjection.from_pretrained(
+        'Xenova/clip-vit-base-patch32'
+      );
+    
+      // 2) Tokenize
+      const inputs = await tokenizer(text, {
+        return_tensors: 'pt',
+        padding: true,
+        truncation: true,
+      });
+    
+      // 3) Forward through TEXT model (no pixels needed)
+      const { text_embeds } = await textModel(inputs); // shape: [1, 512]
+    
+      // 4) (Optional) L2-normalize for cosine similarity workflows
+      const v = text_embeds.data as Float32Array;
+      let norm = 0;
+      for (let i = 0; i < v.length; i++) norm += v[i] * v[i];
+      norm = Math.sqrt(norm);
+      const embedding = new Float32Array(v.length);
+      for (let i = 0; i < v.length; i++) embedding[i] = v[i] / (norm || 1);
+    
+      return embedding; // Float32Array length 512
+    }
+
     // Generate embeddings for uncached prompts
     if (toRun.length > 0) {
-      const extractor = await getTextFeatureExtractor();
+      // const extractor = await getTextFeatureExtractor();
       for (const prompt of toRun) {
         try {
-          const result = await extractor(prompt, { pooling: 'mean', normalize: true });
-          const vector = (result && (result as any).data)
-            ? new Float32Array((result as any).data)
-            : new Float32Array(result as unknown as Float32Array);
+          const result = await  getTextEmbedding(prompt);
+          const vector = result;
+          console.log('vector:', vector)
+          // const vector = (result && (result as any).data)
+          //   ? new Float32Array((result as any).data)
+          //   : new Float32Array(result as unknown as Float32Array);
           cache.set(prompt, vector);
         } catch (error) {
           console.error(`Failed to generate embedding for prompt: "${prompt}"`, error);
