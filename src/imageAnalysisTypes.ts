@@ -117,6 +117,30 @@ export interface ImageData {
     }>;
   };
   
+  // Text similarity comparison to source image
+  textSimilarityToSource?: {
+    // Comparison of bestMatches between this image and source image
+    categoryComparisons: Array<{
+      category: string; // e.g., "age", "gender", "expression"
+      sourceAttribute: string; // best match attribute from source image
+      currentAttribute: string; // best match attribute from current image
+      sourceSimilarity: number; // similarity score from source image
+      currentSimilarity: number; // similarity score from current image
+      isMatching: boolean; // true if attributes are the same
+      faceIndex?: number; // if calculated per face
+      sourceFaceIndex?: number; // which face in the source image
+    }>;
+    
+    // Summary of matching/non-matching categories
+    summary: {
+      totalCategories: number;
+      matchingCategories: number;
+      nonMatchingCategories: number;
+      matchingPercentage: number;
+      timestamp: Date;
+    };
+  };
+  
   // Processing metadata
   processing: {
     stages: {
@@ -126,6 +150,7 @@ export interface ImageData {
       textSimilarityCompleted?: Date;
       comparisonCompleted?: Date;
       similarityToSourceCompleted?: Date;
+      textSimilarityToSourceCompleted?: Date;
     };
     errors?: Array<{
       stage: string;

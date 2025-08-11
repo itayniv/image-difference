@@ -9,6 +9,8 @@ export type FaceOverlayProps = {
   landmarksPerFace: Point[][];
   // Optional maximum render width; height will keep aspect ratio
   maxWidth?: number;
+  // Whether to show landmark overlays
+  showOverlays?: boolean;
 };
 
 export default function FaceOverlay({
@@ -16,6 +18,7 @@ export default function FaceOverlay({
   imageSize,
   landmarksPerFace,
   maxWidth = 512,
+  showOverlays = true,
 }: FaceOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -43,36 +46,38 @@ export default function FaceOverlay({
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, cw, ch);
 
-      // Draw landmarks per face
-      const colors = [
-        "#00E5FF",
-        "#FF3D00",
-        "#76FF03",
-        "#FFC400",
-        "#7C4DFF",
-        "#FF4081",
-      ];
-      landmarksPerFace.forEach((points, faceIdx) => {
-        const color = colors[faceIdx % colors.length];
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color;
-        const radius = Math.max(1.5, Math.min(cw, ch) * 0.003);
+      // Draw landmarks per face (only if showOverlays is true)
+      if (showOverlays) {
+        const colors = [
+          "#00E5FF",
+          "#FF3D00",
+          "#76FF03",
+          "#FFC400",
+          "#7C4DFF",
+          "#FF4081",
+        ];
+        landmarksPerFace.forEach((points, faceIdx) => {
+          const color = colors[faceIdx % colors.length];
+          ctx.fillStyle = color;
+          ctx.strokeStyle = color;
+          const radius = Math.max(1.5, Math.min(cw, ch) * 0.001);
 
-        for (const p of points) {
-          const x = p.x * cw;
-          const y = p.y * ch;
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
+          for (const p of points) {
+            const x = p.x * cw;
+            const y = p.y * ch;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
     };
     img.src = imageURL;
 
     return () => {
       isCancelled = true;
     };
-  }, [imageURL, imageSize?.width, imageSize?.height, landmarksPerFace, maxWidth]);
+  }, [imageURL, imageSize?.width, imageSize?.height, landmarksPerFace, maxWidth, showOverlays]);
 
   return <canvas ref={canvasRef} style={{ width: "100%", height: "auto" }} />;
 }

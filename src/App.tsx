@@ -9,6 +9,7 @@ import ImageWithLandmarks from './Components/ImageWithLandmarksHelper'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
 import LoadingComponent from './Components/LoadingComponent'
+import ActionFooter from './Components/ActionFooter'
 import type { ImageData, ImageAnalysisDataset } from './imageAnalysisTypes'
 
 import { AutoTokenizer, CLIPTextModelWithProjection } from '@huggingface/transformers'
@@ -532,6 +533,10 @@ function App() {
       console.log('Text embeddings not ready, skipping text similarity analysis')
     }
 
+    // analyze and compare text similarity to source image
+    // We need to use the current state, so we'll call this in a useEffect after text similarity completes
+
+
     // Compute similarity to source (first image's face)
     console.log('Computing similarity to source image...')
     computeSimilarityToSource()
@@ -673,10 +678,145 @@ function App() {
         }
       };
 
-      console.log('Text similarity analysis completed for all faces');
       return updatedDataset;
     });
   }, [textEmbeddings]);
+
+  // Function to analyze text similarity to source image by comparing bestMatches
+  const analyzeTextSimilarityToSource = useCallback((dataset: ImageAnalysisDataset) => {
+    if (dataset.images.length === 0) {
+      console.warn('No images available for text similarity to source comparison');
+      return;
+    }
+
+    // Find the source image (first image)
+    const sourceImage = dataset.images[0];
+
+    if (!sourceImage.textSimilarity?.bestMatches || sourceImage.textSimilarity.bestMatches.length === 0) {
+      console.warn('Source image has no text similarity bestMatches available');
+      return;
+    }
+
+    console.log(`Analyzing text similarity to source: ${sourceImage.name}`);
+
+    // Update all images with text similarity to source analysis
+    setImageDataset(currentDataset => {
+      const updatedImages = currentDataset.images.map((imageData, imageIndex) => {
+        // Skip the source image itself
+        if (imageIndex === 0) {
+          return imageData;
+        }
+
+        if (!imageData.textSimilarity?.bestMatches || imageData.textSimilarity.bestMatches.length === 0) {
+          return imageData; // Return unchanged if no text similarity data
+        }
+
+        // Create a map of source image's best matches by category
+        const sourceBestMatchesByCategory = sourceImage.textSimilarity!.bestMatches.reduce((acc, match) => {
+          acc[match.category] = match;
+          return acc;
+        }, {} as Record<string, typeof sourceImage.textSimilarity.bestMatches[0]>);
+
+        // Create a map of current image's best matches by category
+        const currentBestMatchesByCategory = imageData.textSimilarity.bestMatches.reduce((acc, match) => {
+          acc[match.category] = match;
+          return acc;
+        }, {} as Record<string, typeof imageData.textSimilarity.bestMatches[0]>);
+
+        // Compare categories
+        const categoryComparisons = Object.keys(sourceBestMatchesByCategory).map(category => {
+          const sourceMatch = sourceBestMatchesByCategory[category];
+          const currentMatch = currentBestMatchesByCategory[category];
+
+          if (!currentMatch) {
+            // Current image doesn't have this category
+            return {
+              category,
+              sourceAttribute: sourceMatch.attribute,
+              currentAttribute: 'N/A',
+              sourceSimilarity: sourceMatch.similarity,
+              currentSimilarity: 0,
+              isMatching: false,
+              faceIndex: undefined,
+              sourceFaceIndex: sourceMatch.faceIndex
+            };
+          }
+
+          return {
+            category,
+            sourceAttribute: sourceMatch.attribute,
+            currentAttribute: currentMatch.attribute,
+            sourceSimilarity: sourceMatch.similarity,
+            currentSimilarity: currentMatch.similarity,
+            isMatching: sourceMatch.attribute === currentMatch.attribute,
+            faceIndex: currentMatch.faceIndex,
+            sourceFaceIndex: sourceMatch.faceIndex
+          };
+        });
+
+        // Calculate summary statistics
+        const totalCategories = categoryComparisons.length;
+        const matchingCategories = categoryComparisons.filter(comp => comp.isMatching).length;
+        const nonMatchingCategories = totalCategories - matchingCategories;
+        const matchingPercentage = totalCategories > 0 ? (matchingCategories / totalCategories) * 100 : 0;
+
+        // Update the image with text similarity to source results
+        return {
+          ...imageData,
+          textSimilarityToSource: {
+            categoryComparisons,
+            summary: {
+              totalCategories,
+              matchingCategories,
+              nonMatchingCategories,
+              matchingPercentage,
+              timestamp: new Date()
+            }
+          },
+          processing: {
+            ...imageData.processing,
+            stages: {
+              ...imageData.processing.stages,
+              textSimilarityToSourceCompleted: new Date()
+            }
+          }
+        };
+      });
+
+      return {
+        ...currentDataset,
+        images: updatedImages,
+        metadata: {
+          ...currentDataset.metadata,
+          lastUpdated: new Date()
+        }
+      };
+    });
+
+    console.log('Text similarity to source analysis completed');
+  }, []);
+
+  // Run text similarity to source analysis after text similarity is completed
+  useEffect(() => {
+    const imagesWithTextSimilarity = imageDataset.images.filter(img => 
+      img.textSimilarity && img.textSimilarity.bestMatches.length > 0
+    );
+
+    // Check if we have text similarity data for at least 2 images (source + others)
+    if (imagesWithTextSimilarity.length >= 2) {
+      // Check if any image is missing textSimilarityToSource analysis
+      const needsAnalysis = imageDataset.images.some((img, index) => 
+        index > 0 && // Skip source image
+        img.textSimilarity?.bestMatches && img.textSimilarity.bestMatches.length > 0 && // Has text similarity
+        !img.textSimilarityToSource // Missing text similarity to source
+      );
+
+      if (needsAnalysis) {
+        console.log('Running text similarity to source analysis...');
+        analyzeTextSimilarityToSource(imageDataset);
+      }
+    }
+  }, [imageDataset.images, analyzeTextSimilarityToSource]);
 
   // Helper function to find best matching attributes per category
   const getBestMatchesPerCategory = (attributeSimilarities: Array<{
@@ -721,9 +861,7 @@ function App() {
     return imageDataset.images.filter(img => img.embeddings)
   }, [imageDataset.images])
 
-  const getImageById = useCallback((id: string) => {
-    return imageDataset.images.find(img => img.id === id)
-  }, [imageDataset.images])
+
 
   const getAllFaceEmbeddings = useCallback(() => {
     const faceEmbeddings: Array<{ imageId: string, imageName: string, faceIndex: number, vector: number[] | Float32Array }> = []
@@ -879,6 +1017,7 @@ function App() {
         embeddings: img.processing.stages.embeddingCompleted ? 'completed' : 'pending',
         textSimilarity: img.processing.stages.textSimilarityCompleted ? 'completed' : 'pending',
         similarityToSource: img.processing.stages.similarityToSourceCompleted ? 'completed' : 'pending',
+        textSimilarityToSource: img.processing.stages.textSimilarityToSourceCompleted ? 'completed' : 'pending',
         errors: img.processing.errors?.length || 0
       })
 
@@ -897,6 +1036,16 @@ function App() {
           console.log(`  Face ${sim.faceIndex}: ${sim.similarity.toFixed(3)} (source: face ${sim.sourceFaceIndex})`)
         })
       }
+
+      // Log text similarity to source results if available
+      if (img.textSimilarityToSource) {
+        console.log(`${img.name} text similarity to source results:`)
+        console.log(`  Summary: ${img.textSimilarityToSource.summary.matchingCategories}/${img.textSimilarityToSource.summary.totalCategories} matching (${img.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%)`)
+        img.textSimilarityToSource.categoryComparisons.forEach(comp => {
+          const matchIcon = comp.isMatching ? '✓' : '✗';
+          console.log(`  ${matchIcon} ${comp.category}: ${comp.sourceAttribute} → ${comp.currentAttribute} ${comp.isMatching ? '(match)' : '(different)'}`)
+        })
+      }
     })
 
     // Log top text similarity matches across all images
@@ -910,8 +1059,7 @@ function App() {
   }, [imageDataset, getImagesBySource, getImagesWithFaceDetection, getImagesWithEmbeddings, getImagesWithTextSimilarity, getAllFaceEmbeddings, textEmbeddings.length, getTopTextSimilarityMatches])
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-gray-100">
-
+    <div className="relative w-full h-full min-h-screen bg-gray-100 pb-20">
       <div id='loader' className='fixed top-4 right-4 z-50'>
         {isExtractorLoading && (
           <LoadingComponent
@@ -925,7 +1073,7 @@ function App() {
         {/* Success message when models are loaded */}
         {!isExtractorLoading && (
           <div className="bg-green-50 rounded-lg p-3 shadow-lg">
-            <div className="text-xs text-green-700 font-regular">✓ AI models loaded successfully</div>
+            <div className="text-xs text-green-700 font-regular">✓ Models loaded successfully</div>
           </div>
         )}
       </div>
@@ -949,55 +1097,31 @@ function App() {
         </div>
       </div>
 
-      <div className="mt-4 flex gap-4">
-        <button
-          type="button"
-          onClick={() => analyizeImages()}
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-          disabled={uploadedFiles.length === 0 || uploadedAIFiles.length === 0}
-        >
-          analyize similarity
-        </button>
 
-        <button
-          type="button"
-          onClick={logDatasetSummary}
-          className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-          disabled={imageDataset.images.length === 0}
-        >
-          Log Dataset Summary
-        </button>
-
-        <button
-          type="button"
-          onClick={computeTextSimilarityForAllFaces}
-          className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-          disabled={imageDataset.images.length === 0 || textEmbeddings.length === 0}
-        >
-          Compute Text Similarity
-        </button>
-
-        <button
-          type="button"
-          onClick={computeSimilarityToSource}
-          className="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50"
-          disabled={imageDataset.images.length < 2 || !imageDataset.images[0]?.embeddings?.faces?.[0]}
-        >
-          Compute Similarity to Source
-        </button>
-      </div>
       {overlays.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-6 p-8 pb-24">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Face Detection Results</h2>
           <ImageWithLandmarks
             results={overlays}
             maxWidth={640}
             showChips={true}
             className="mt-4"
+            imageDataset={imageDataset}
           />
         </div>
       )}
       {/* reserved for future face detection UI */}
+      
+      <ActionFooter
+        onAnalyzeImages={() => analyizeImages()}
+        onLogDatasetSummary={logDatasetSummary}
+        onComputeTextSimilarity={computeTextSimilarityForAllFaces}
+        onComputeSimilarityToSource={computeSimilarityToSource}
+        isAnalyzeDisabled={uploadedFiles.length === 0 || uploadedAIFiles.length === 0}
+        isLogDisabled={imageDataset.images.length === 0}
+        isTextSimilarityDisabled={imageDataset.images.length === 0 || textEmbeddings.length === 0}
+        isSimilarityToSourceDisabled={imageDataset.images.length < 2 || !imageDataset.images[0]?.embeddings?.faces?.[0]}
+      />
     </div>
   )
 }

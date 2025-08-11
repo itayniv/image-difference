@@ -1,7 +1,10 @@
+@import "tailwindcss";
+
+
 #root {
   width: 100vw;
   height: 100vh;
-  padding: 2rem;
+  padding: 0rem;
   text-align: center;
   box-sizing: border-box;
 }
