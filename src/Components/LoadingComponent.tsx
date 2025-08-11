@@ -45,49 +45,35 @@ const LoadingComponent: React.FC<LoadingComponentProps> = ({
   const currentSize = sizeClasses[size];
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${currentSize.container} ${className}`}>
-      {/* Loading message */}
-      <div className={`text-gray-700 mb-3 font-medium ${currentSize.text}`}>
-        {message}
-      </div>
+    <div className={`bg-white flex flex-row items-center justify-center rounded-lg shadow-sm ${currentSize.container} ${className}`}>
+      {/* Message and progress bar side by side */}
+      <div className="flex flex-row items-center w-full gap-6">
+        {/* Loading message - now with flex-shrink-0 to prevent wrapping */}
+        <div className={`text-gray-700 flex-shrink-0 font-medium ${currentSize.text}`}>
+          {message}
+        </div>
 
-      {/* Progress bar container */}
-      <div className={`w-full bg-gray-200 rounded-full overflow-hidden ${currentSize.bar}`}>
-        {/* Progress bar fill */}
-        <div
-          className={`bg-gradient-to-r from-blue-500 to-blue-600 ${currentSize.bar} rounded-full transition-all duration-300 ease-out`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-
-      {/* Percentage and progress indicator */}
-      <div className="flex justify-between items-center mt-2">
-        {showPercentage && (
-          <span className={`text-gray-600 font-mono ${currentSize.text === 'text-lg' ? 'text-base' : 'text-sm'}`}>
-            {percentage}%
-          </span>
-        )}
-        <div className="flex space-x-1">
-          {/* Animated dots */}
-          {[0, 1, 2].map((i) => (
+        {/* Progress bar container - now takes remaining space */}
+        <div className="flex-1 flex flex-col w-full">
+          {/* Progress bar */}
+          <div className={`w-full bg-gray-200 rounded-full overflow-hidden ${currentSize.bar}`}>
+            {/* Progress bar fill */}
             <div
-              key={i}
-              className={`w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse`}
-              style={{
-                animationDelay: `${i * 0.2}s`,
-                animationDuration: '1s'
-              }}
+              className={`bg-gradient-to-r from-blue-500 to-blue-600 ${currentSize.bar} rounded-full transition-all duration-300 ease-out`}
+              style={{ width: `${percentage}%` }}
             />
-          ))}
+          </div>
+
+          {/* Percentage indicator below progress bar */}
+          {showPercentage && (
+            <div className="flex justify-end mt-1">
+              <span className={`text-gray-600 font-mono ${currentSize.text === 'text-lg' ? 'text-base' : 'text-sm'}`}>
+                {progress.toFixed(0)}%
+              </span>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Progress details for debugging if needed */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-2 text-xs text-gray-400 font-mono">
-          Raw progress: {progress.toFixed(4)}
-        </div>
-      )}
     </div>
   );
 };

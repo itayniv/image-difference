@@ -3,17 +3,27 @@ export interface AttributeSpec {
     label: string;               // e.g., "Hair color"
     options: string[];           // label list (ordered)
     template: (opt: string) => string; // prompt template
-    weight?: number;             // optional attribute weight in scoring
   }
 
 // You can freely edit/add attributes here. Keep wording concise and consistent.
 export const ATTRIBUTES: AttributeSpec[] = [
     {
+      key: "gender",
+      label: "Gender",
+      options: ["a man", "a woman", "a boy", "a girl"],
+      template: (o) => `a headshot photo of ${o}`,
+    },
+    {
       key: "skinTone",
       label: "Skin tone",
       options: ["very fair", "fair", "light", "medium", "tan", "brown", "dark"],
       template: (o) => `a headshot photo of a person with ${o} skin tone`,
-      weight: 1.1,
+    },
+    {
+      key: "facialExpression",
+      label: "Facial expression",
+      options: ["happy", "sad", "angry", "surprised", "neutral", "confused", "smiling", "serious"],
+      template: (o) => `a headshot photo of a person with a ${o} facial expression`,
     },
     {
       key: "hairColor",
@@ -36,16 +46,14 @@ export const ATTRIBUTES: AttributeSpec[] = [
     {
       key: "glasses",
       label: "Glasses",
-      options: ["with glasses", "without glasses"],
-      template: (o) => `a headshot photo of a person ${o}`,
-      weight: 0.9,
+      options: ["not wearing glasses", "wearing glasses"],
+      template: (o) => `a headshot photo of a person who is ${o}`,
     },
     {
       key: "jawline",
       label: "Jawline",
       options: ["round jawline", "square jawline", "sharp jawline", "oval jawline"],
       template: (o) => `a headshot photo of a person with a ${o}`,
-      weight: 1.1,
     },
     {
       key: "eyeColor",

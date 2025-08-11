@@ -1,168 +1,193 @@
-// Core types for image analysis state management
+// Core types for image analysis and processing pipeline
 
-export interface ImageEmbedding {
-  vector: Float32Array;
-  model: string; // e.g., "clip-vit-base-patch32"
-  timestamp: Date;
-}
-
-export interface FaceEmbedding {
-  vector: Float32Array;
-  faceIndex: number; // Which face from the image (0, 1, 2...)
-  model: string;
-  timestamp: Date;
-}
-
-export interface TextSimilarityResult {
-  prompt: string;
-  similarity: number;
-  attribute?: string; // Optional attribute category
-}
-
-export interface FaceSimilarityResult {
-  targetImageId: string;
-  targetFaceIndex: number;
-  similarity: number;
-  comparisonType: 'face-to-face' | 'face-to-image';
-}
-
-export interface ImageSimilarityResult {
-  targetImageId: string;
-  similarity: number;
-  comparisonType: 'image-to-image' | 'image-to-face';
-}
-
-export interface ProcessingStatus {
-  faceDetection: 'pending' | 'processing' | 'completed' | 'error';
-  imageEmbedding: 'pending' | 'processing' | 'completed' | 'error';
-  faceEmbedding: 'pending' | 'processing' | 'completed' | 'error';
-  textSimilarity: 'pending' | 'processing' | 'completed' | 'error';
-  imageSimilarity: 'pending' | 'processing' | 'completed' | 'error';
-  faceSimilarity: 'pending' | 'processing' | 'completed' | 'error';
-}
-
-export interface AnalyzedImage {
-  // Core identification
+export interface ImageData {
+  // Basic image information
   id: string;
   file: File;
-  category: 'reference' | 'ai-generated';
+  name: string;
+  url: string; // Object URL for display
+  size: {
+    width: number;
+    height: number;
+    fileSize: number;
+  };
+  
+  // Source classification
+  source: 'original' | 'ai' | 'reference';
   
   // Face detection results
-  imageURL: string;
-  imageSize: { width: number; height: number };
-  landmarksPerFace: { x: number; y: number }[][];
-  faceCrops: Array<{
-    blob: Blob;
-    url: string;
-    faceIndex: number;
-  }>;
-  
-  // Embeddings
-  imageEmbedding?: ImageEmbedding;
-  faceEmbeddings: FaceEmbedding[]; // One per detected face
-  
-  // Similarity results
-  textSimilarities: TextSimilarityResult[];
-  imageSimilarities: ImageSimilarityResult[];
-  faceSimilarities: FaceSimilarityResult[];
-  
-  // Processing status
-  status: ProcessingStatus;
-  
-  // Metadata
-  createdAt: Date;
-  lastUpdated: Date;
-  errors?: Array<{
-    step: keyof ProcessingStatus;
-    message: string;
-    timestamp: Date;
-  }>;
-}
-
-// State management interface
-export interface ImageAnalysisState {
-  images: Map<string, AnalyzedImage>;
-  
-  // Global analysis results
-  crossImageSimilarities: Array<{
-    sourceId: string;
-    targetId: string;
-    imageToImageSimilarity?: number;
-    faceToFaceSimilarities: Array<{
-      sourceFaceIndex: number;
-      targetFaceIndex: number;
-      similarity: number;
+  faceDetection?: {
+    landmarks: Array<{
+      faceIndex: number;
+      points: { x: number; y: number; z?: number }[];
+      blendshapes?: any; // MediaPipe blendshapes
+      matrices?: any; // MediaPipe transformation matrices
     }>;
-  }>;
-  
-  // Analysis configuration
-  config: {
-    models: {
-      imageModel: string;
-      textModel: string;
-    };
-    thresholds: {
-      minFaceConfidence: number;
-      minSimilarityThreshold: number;
+    chips: Array<{
+      faceIndex: number;
+      url: string; // Object URL for the cropped face
+      blob: Blob;
+      canvas: HTMLCanvasElement;
+      targetEyes: { 
+        left: { x: number; y: number }; 
+        right: { x: number; y: number }; 
+      };
+      transform: { 
+        scale: number; 
+        theta: number; 
+        tx: number; 
+        ty: number; 
+      };
+    }>;
+    imageSize: { width: number; height: number };
+    processingOptions?: {
+      outputSize: number;
+      paddingFactor: number;
     };
   };
   
-  // Global state
-  isAnalyzing: boolean;
-  analysisProgress: number; // 0-1
-  lastAnalysisTimestamp?: Date;
+  // Image embeddings
+  embeddings?: {
+    // Full image embedding
+    fullImage?: {
+      vector: Float32Array | number[];
+      model: string; // e.g., "Xenova/clip-vit-base-patch32"
+      dimensions: number;
+      timestamp: Date;
+    };
+    
+    // Face crop embeddings (one per detected face)
+    faces?: Array<{
+      faceIndex: number;
+      vector: Float32Array | number[];
+      model: string;
+      dimensions: number;
+      timestamp: Date;
+    }>;
+  };
+  
+  // Text similarity analysis
+  textSimilarity?: {
+    // Similarity scores against predefined text prompts/attributes
+    attributes: Array<{
+      category: string; // e.g., "age", "gender", "expression"
+      attribute: string; // e.g., "young", "male", "smiling"
+      prompt: string; // the actual text prompt used
+      similarity: number; // cosine similarity score
+      faceIndex?: number; // if calculated per face
+    }>;
+    
+    // Best matching attributes per category
+    bestMatches: Array<{
+      category: string;
+      attribute: string;
+      similarity: number;
+      faceIndex?: number;
+    }>;
+  };
+  
+  // Comparison results with other images
+  comparisons?: {
+    similarities: Array<{
+      targetImageId: string;
+      targetImageName: string;
+      similarity: number;
+      comparisonType: 'fullImage' | 'face';
+      faceIndex?: number; // if comparing faces
+      targetFaceIndex?: number;
+      timestamp: Date;
+    }>;
+    
+    // UMAP or other dimensionality reduction results
+    dimensionalityReduction?: {
+      coordinates: { x: number; y: number }[];
+      method: 'umap' | 'tsne' | 'pca';
+      parameters: Record<string, any>;
+    };
+  };
+  
+  // Similarity to source (first image's cropped face)
+  computeSimilarityToSource?: {
+    similarities: Array<{
+      faceIndex: number; // which face in this image
+      sourceImageId: string; // ID of the source (first) image
+      sourceFaceIndex: number; // which face in the source image (typically 0)
+      similarity: number; // cosine similarity score
+      timestamp: Date;
+    }>;
+  };
+  
+  // Processing metadata
+  processing: {
+    stages: {
+      uploaded: Date;
+      faceDetectionCompleted?: Date;
+      embeddingCompleted?: Date;
+      textSimilarityCompleted?: Date;
+      comparisonCompleted?: Date;
+      similarityToSourceCompleted?: Date;
+    };
+    errors?: Array<{
+      stage: string;
+      error: string;
+      timestamp: Date;
+    }>;
+  };
 }
 
-// Helper functions for state management
-export interface ImageAnalysisActions {
-  // Image management
-  addImage: (file: File, category: 'reference' | 'ai-generated') => string; // Returns image ID
-  removeImage: (id: string) => void;
-  updateImageStatus: (id: string, step: keyof ProcessingStatus, status: ProcessingStatus[keyof ProcessingStatus]) => void;
+// Type for the complete dataset being analyzed
+export interface ImageAnalysisDataset {
+  images: ImageData[];
+  metadata: {
+    created: Date;
+    lastUpdated: Date;
+    totalImages: number;
+    originalImages: number;
+    aiImages: number;
+    referenceImages: number;
+  };
   
-  // Face detection results
-  setFaceDetectionResults: (
-    id: string, 
-    results: {
-      imageSize: { width: number; height: number };
-      landmarksPerFace: { x: number; y: number }[][];
-      faceCrops: Array<{ blob: Blob; faceIndex: number }>;
-    }
-  ) => void;
-  
-  // Embeddings
-  setImageEmbedding: (id: string, embedding: ImageEmbedding) => void;
-  addFaceEmbedding: (id: string, embedding: FaceEmbedding) => void;
-  
-  // Similarity results
-  addTextSimilarity: (id: string, result: TextSimilarityResult) => void;
-  addImageSimilarity: (id: string, result: ImageSimilarityResult) => void;
-  addFaceSimilarity: (id: string, result: FaceSimilarityResult) => void;
-  setCrossImageSimilarities: (similarities: ImageAnalysisState['crossImageSimilarities']) => void;
-  
-  // Error handling
-  addError: (id: string, step: keyof ProcessingStatus, message: string) => void;
-  
-  // Bulk operations
-  resetAnalysis: () => void;
-  startAnalysis: () => void;
-  completeAnalysis: () => void;
+  // Global analysis results
+  globalAnalysis?: {
+    // Overall similarity matrix
+    similarityMatrix?: number[][];
+    
+    // Clustering results
+    clusters?: Array<{
+      id: string;
+      imageIds: string[];
+      centroid?: number[];
+      averageSimilarity: number;
+    }>;
+    
+    // Summary statistics
+    statistics?: {
+      averageSimilarity: number;
+      similarityRange: { min: number; max: number };
+      mostSimilarPair: { image1Id: string; image2Id: string; similarity: number };
+      leastSimilarPair: { image1Id: string; image2Id: string; similarity: number };
+    };
+  };
 }
 
-// Utility types for querying the state
-export interface ImageQueryOptions {
-  category?: 'reference' | 'ai-generated';
-  hasImageEmbedding?: boolean;
-  hasFaceEmbeddings?: boolean;
-  minFaces?: number;
-  maxFaces?: number;
-  status?: Partial<ProcessingStatus>;
-}
-
-export interface SimilarityQueryOptions {
-  minSimilarity?: number;
-  maxSimilarity?: number;
-  comparisonType?: 'face-to-face' | 'face-to-image' | 'image-to-image' | 'image-to-face';
-  sourceCategory?: 'reference' | 'ai-generated';
-  targetCategory?: 'reference' | 'ai-generated';
+// Helper types for specific operations
+export interface ProcessingOptions {
+  faceDetection?: {
+    outputSize?: number;
+    paddingFactor?: number;
+    maxFaces?: number;
+    enableBlendshapes?: boolean;
+    enableMatrices?: boolean;
+  };
+  
+  embeddings?: {
+    model?: string;
+    pooling?: 'mean' | 'max' | 'cls';
+    normalize?: boolean;
+  };
+  
+  textSimilarity?: {
+    attributes?: string[];
+    threshold?: number;
+  };
 }
