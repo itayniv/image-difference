@@ -47,27 +47,26 @@ const LoadingComponent: React.FC<LoadingComponentProps> = ({
   return (
     <div className={`bg-white flex flex-row items-center justify-center rounded-lg shadow-sm ${currentSize.container} ${className}`}>
       {/* Message and progress bar side by side */}
-      <div className="flex flex-row items-center w-full gap-6">
+      <div className="flex flex-col items-center w-full">
         {/* Loading message - now with flex-shrink-0 to prevent wrapping */}
-        <div className={`text-gray-700 flex-shrink-0 font-medium ${currentSize.text}`}>
+        <div className={`text-gray-700 flex-shrink-0 font-regular text-xs ${currentSize.text}`}>
           {message}
         </div>
 
         {/* Progress bar container - now takes remaining space */}
-        <div className="flex-1 flex flex-col w-full">
+        <div className="flex-1 flex flex-row w-full items-baseline gap-4">
           {/* Progress bar */}
           <div className={`w-full bg-gray-200 rounded-full overflow-hidden ${currentSize.bar}`}>
             {/* Progress bar fill */}
             <div
-              className={`bg-gradient-to-r from-blue-500 to-blue-600 ${currentSize.bar} rounded-full transition-all duration-300 ease-out`}
-              style={{ width: `${percentage}%` }}
+              className={`bg-gradient-to-r from-blue-300 to-blue-600 ${currentSize.bar} rounded-full transition-all duration-300 ease-out`}
+              style={{ width: `${progress.toFixed(0)}%` }}
             />
           </div>
-
           {/* Percentage indicator below progress bar */}
           {showPercentage && (
             <div className="flex justify-end mt-1">
-              <span className={`text-gray-600 font-mono ${currentSize.text === 'text-lg' ? 'text-base' : 'text-sm'}`}>
+              <span className={`text-gray-600 font-mono ${currentSize.text === 'text-lg' ? 'text-base' : 'text-xs'}`}>
                 {progress.toFixed(0)}%
               </span>
             </div>

@@ -8,8 +8,9 @@ import { processFaceFile } from './Components/faceLandmarker'
 import ImageWithLandmarks from './Components/ImageWithLandmarksHelper'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
-import LoadingComponent from './Components/LoadingComponent'
+
 import ActionFooter from './Components/ActionFooter'
+import PageTitle from './Components/PageTitle'
 import type { ImageData, ImageAnalysisDataset } from './imageAnalysisTypes'
 
 import { AutoTokenizer, CLIPTextModelWithProjection } from '@huggingface/transformers'
@@ -998,7 +999,7 @@ function App() {
   }, [imageDataset.images, cosineSimilarity])
 
   // Example function to demonstrate accessing data
-  const logDatasetSummary = useCallback(() => {
+  const _logDatasetSummary = useCallback(() => {
     console.log('=== Dataset Summary ===')
     console.log('Total images:', imageDataset.metadata.totalImages)
     console.log('Original images:', getImagesBySource('original').length)
@@ -1060,47 +1061,39 @@ function App() {
 
   return (
     <div className="relative w-full h-full min-h-screen bg-gray-100 pb-20">
-      <div id='loader' className='fixed top-4 right-4 z-50'>
-        {isExtractorLoading && (
-          <LoadingComponent
-            progress={loadingProgress}
-            message="Loading AI models and initializing..."
-            size="small"
-            className="w-72 shadow-lg bg-white"
-          />
-        )}
-
-        {/* Success message when models are loaded */}
-        {!isExtractorLoading && (
-          <div className="bg-green-50 rounded-lg p-3 shadow-lg">
-            <div className="text-xs text-green-700 font-regular">✓ Models loaded successfully</div>
-          </div>
-        )}
+      <div className="p-6">
+        <PageTitle />
       </div>
+      
 
-      <div className="flex flex-row gap-4">
-        <div className="card">
-          <h2>Image Drop Zone</h2>
-          <ImageDropZone
-            onImagesUploaded={handleImagesUploaded}
-            maxFiles={10}
-            files={uploadedFiles}
-          />
-        </div>
-        <div className="card">
-          <h2>AI Image Drop Zone</h2>
-          <ImageDropZone
-            onImagesUploaded={handleAIImagesUploaded}
-            maxFiles={10}
-            files={uploadedAIFiles}
-          />
+
+      <div className="px-6">
+        <div className="flex flex-row gap-4">
+          <div className="card">
+            <h2>Image Drop Zone</h2>
+            <ImageDropZone
+              onImagesUploaded={handleImagesUploaded}
+              maxFiles={10}
+              files={uploadedFiles}
+            />
+          </div>
+          <div className="card">
+            <h2>AI Image Drop Zone</h2>
+            <ImageDropZone
+              onImagesUploaded={handleAIImagesUploaded}
+              maxFiles={10}
+              files={uploadedAIFiles}
+            />
+          </div>
         </div>
       </div>
 
 
       {overlays.length > 0 && (
-        <div className="mt-6 p-8 pb-24">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Face Detection Results</h2>
+        <div className="mt-6 p-8 pb-24 flex flex-col gap-4">
+          <div className="flex flex-row gap-4">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Face Detection Results</h2>
+          </div>
           <ImageWithLandmarks
             results={overlays}
             maxWidth={640}
@@ -1114,13 +1107,9 @@ function App() {
       
       <ActionFooter
         onAnalyzeImages={() => analyizeImages()}
-        onLogDatasetSummary={logDatasetSummary}
-        onComputeTextSimilarity={computeTextSimilarityForAllFaces}
-        onComputeSimilarityToSource={computeSimilarityToSource}
         isAnalyzeDisabled={uploadedFiles.length === 0 || uploadedAIFiles.length === 0}
-        isLogDisabled={imageDataset.images.length === 0}
-        isTextSimilarityDisabled={imageDataset.images.length === 0 || textEmbeddings.length === 0}
-        isSimilarityToSourceDisabled={imageDataset.images.length < 2 || !imageDataset.images[0]?.embeddings?.faces?.[0]}
+        isExtractorLoading={isExtractorLoading}
+        loadingProgress={loadingProgress}
       />
     </div>
   )
