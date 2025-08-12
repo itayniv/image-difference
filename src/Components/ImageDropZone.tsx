@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import './ImageDropZone.css';
 
 interface ImageDropZoneProps {
   onImagesUploaded?: (files: File[]) => void;
@@ -133,52 +132,87 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
   }, [onImagesUploaded]);
 
   return (
-    <div className="image-drop-zone-container">
+    <div className="w-full max-w-4xl mx-auto">
       <div
-        className={`image-drop-zone ${isDragOver ? 'drag-over' : ''}`}
+        className={`
+          border-2 border-dashed rounded-xl p-8 md:p-12 text-center transition-all duration-300 cursor-pointer relative min-h-[150px] md:min-h-[200px] flex items-center justify-center
+          ${isDragOver 
+            ? 'border-green-400 bg-green-50 shadow-lg shadow-green-200' 
+            : 'border-gray-300 bg-slate-50 hover:border-indigo-500 hover:bg-blue-50 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200'
+          }
+        `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {uploadedImages.length === 0 ? (
-          <div className="drop-zone-content">
-            <div className="upload-icon">📁</div>
-            <h3>Drag & Drop Images Here</h3>
-            <p>or click to browse files</p>
+          <div className="pointer-events-none">
+            <div className="text-4xl md:text-5xl mb-4 opacity-70">📁</div>
+            <h3 className="text-md md:text-lg font-semibold text-gray-700 mb-2">Drag & Drop Images Here</h3>
+            <p className="text-gray-500 mb-4">or click to browse files</p>
             <input
               type="file"
               multiple
               accept={acceptedTypes.join(',')}
               onChange={handleFileInput}
-              className="file-input"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-auto"
             />
-            <div className="file-info">
+            <div className="text-gray-400 text-sm leading-relaxed">
               <small>
                 Supported formats: JPEG, PNG, GIF, WebP<br/>
-                Maximum {maxFiles} files
               </small>
             </div>
           </div>
         ) : (
-          <div style={{ width: '100%' }}>
-            <div className="images-header">
-              <h4>Uploaded Images ({uploadedImages.length})</h4>
-              <button onClick={clearAll} className="clear-all-btn">
+          <div className="w-full">
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 md:gap-2 mb-4 pb-3 border-b border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-700">Uploaded Images ({uploadedImages.length})</h4>
+              <button 
+                onClick={clearAll} 
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors duration-200"
+              >
                 Clear All
               </button>
             </div>
-            <div className="image-previews">
+            <div className="relative h-[180px] w-full mx-auto">
               {uploadedImages.map((file, index) => {
                 const preview = previews[index];
                 if (!preview) return null; // guard against async mismatch
+                
+                // Calculate stacking positions for fan effect
+                const offsets = [-48, -24, 0, 24, 48, 72, 96, 120];
+                const rotations = [-4, 2, -1, 3, -2, 1, -3, 2];
+                const offset = offsets[index] || 0;
+                const rotation = rotations[index] || 0;
+                const zIndex = index + 1;
+                
                 return (
-                  <div key={`${file.name}-${index}`} className="image-preview">
-                    <img src={preview} alt={`Preview ${index + 1}`} />
-                    <div className="image-overlay">
-                      <span className="image-name">{file.name}</span>
+                  <div 
+                    key={`${file.name}-${index}`} 
+                    className="absolute left-1/2 w-[150px] md:w-[200px] rounded-lg overflow-hidden bg-gray-50 shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-105 group"
+                    style={{
+                      transform: `translateX(calc(-50% + ${offset}px)) rotate(${rotation}deg)`,
+                      zIndex: zIndex
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.zIndex = '20';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.zIndex = zIndex.toString();
+                    }}
+                  >
+                    <img 
+                      src={preview} 
+                      alt={`Preview ${index + 1}`} 
+                      className="w-full h-[120px] md:h-[150px] object-cover block"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-4 pb-3 flex justify-between items-end opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <span className="text-xs font-medium max-w-[calc(100%-2rem)] overflow-hidden text-ellipsis whitespace-nowrap">
+                        {file.name}
+                      </span>
                       <button
                         onClick={() => removeImage(index)}
-                        className="remove-btn"
+                        className="bg-red-500 hover:bg-red-600 text-white border-none w-6 h-6 rounded-full cursor-pointer text-sm font-bold flex items-center justify-center transition-colors duration-200 flex-shrink-0 leading-none"
                       >
                         ×
                       </button>

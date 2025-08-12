@@ -1069,16 +1069,16 @@ function App() {
 
       <div className="px-6">
         <div className="flex flex-row gap-4">
-          <div className="card">
-            <h2>Image Drop Zone</h2>
+          <div className="card flex flex-col gap-4 items-baseline">
+            <h3 className="text-sm font-bold text-gray-600">Target Image</h3>
             <ImageDropZone
               onImagesUploaded={handleImagesUploaded}
               maxFiles={10}
               files={uploadedFiles}
             />
           </div>
-          <div className="card">
-            <h2>AI Image Drop Zone</h2>
+          <div className="card flex flex-col gap-4 items-baseline">
+          <h3 className="text-sm font-bold text-gray-600">Reference Images (up too 10)</h3>
             <ImageDropZone
               onImagesUploaded={handleAIImagesUploaded}
               maxFiles={10}
