@@ -165,15 +165,6 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
           </div>
         ) : (
           <div className="w-full">
-            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 md:gap-2 mb-4 pb-3 border-b border-gray-200">
-              <h4 className="text-lg font-semibold text-gray-700">Uploaded Images ({uploadedImages.length})</h4>
-              <button 
-                onClick={clearAll} 
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors duration-200"
-              >
-                Clear All
-              </button>
-            </div>
             <div className="relative h-[180px] w-full mx-auto">
               {uploadedImages.map((file, index) => {
                 const preview = previews[index];
@@ -220,6 +211,14 @@ const ImageDropZone: React.FC<ImageDropZoneProps> = ({
                   </div>
                 );
               })}
+            </div>
+            <div className="flex justify-center mt-6">
+              <button 
+                onClick={clearAll} 
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-xs font-medium transition-colors duration-200"
+              >
+                Clear selection
+              </button>
             </div>
           </div>
         )}

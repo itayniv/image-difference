@@ -10,8 +10,14 @@ export const ATTRIBUTES: AttributeSpec[] = [
     {
       key: "gender",
       label: "Gender",
-      options: ["a man", "a woman", "a boy", "a girl"],
+      options: ["a man", "a woman"],
       template: (o) => `a headshot photo of ${o}`,
+    },
+    {
+      key: "age",
+      label: "Age",
+      options: ["young", "middle-aged", "old"],
+      template: (o) => `a headshot photo of a person who is ${o}`,
     },
     {
       key: "skinTone",

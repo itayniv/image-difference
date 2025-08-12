@@ -70,6 +70,24 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
 
     return (
       <div className="mt-3 p-3 bg-gray-50 rounded-lg border">   
+
+     {/* Similarity to Source */}
+     {imageData.computeSimilarityToSource?.similarities && imageData.computeSimilarityToSource.similarities.length > 0 && (
+          <div className="mb-2">
+            <h6 className="text-xs font-medium text-gray-700 mb-1">Source Similarity:</h6>
+            <div className="space-y-1">
+              {imageData.computeSimilarityToSource.similarities.map((sim, idx) => (
+                <div key={idx} className="text-xs bg-white p-2 rounded border">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Face {sim.faceIndex + 1} → Source Face {sim.sourceFaceIndex + 1}</span>
+                    <span className="font-medium text-green-600">{(sim.similarity * 100).toFixed(1)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Text Similarity Best Matches */}
         {imageData.textSimilarity?.bestMatches && imageData.textSimilarity.bestMatches.length > 0 && (
           <div className="mb-2">
@@ -80,23 +98,6 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
                   <div className="flex justify-between items-center">
                     <span className="font-regular text-gray-700">{match.category}: <span className="text-gray-500 font-bold">{match.attribute}</span></span>
                     <span className="text-blue-600">{(match.similarity * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Similarity to Source */}
-        {imageData.computeSimilarityToSource?.similarities && imageData.computeSimilarityToSource.similarities.length > 0 && (
-          <div className="mb-2">
-            <h6 className="text-xs font-medium text-gray-700 mb-1">Source Similarity:</h6>
-            <div className="space-y-1">
-              {imageData.computeSimilarityToSource.similarities.map((sim, idx) => (
-                <div key={idx} className="text-xs bg-white p-2 rounded border">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Face {sim.faceIndex + 1} → Source Face {sim.sourceFaceIndex + 1}</span>
-                    <span className="font-medium text-green-600">{(sim.similarity * 100).toFixed(1)}%</span>
                   </div>
                 </div>
               ))}

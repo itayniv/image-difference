@@ -31,6 +31,7 @@ function App() {
 
   // Cache the image feature extractor so the model loads only once
   const imageFeatureExtractorRef = useRef<any | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false)
 
   // Cache CLIP tokenizer and text model for direct text embedding
   const clipTokenizerRef = useRef<any | null>(null)
@@ -66,8 +67,6 @@ function App() {
     }>
   >([])
   const previousURLsRef = useRef<string[]>([])
-
-
 
 
   const [isExtractorLoading, setIsExtractorLoading] = useState<boolean>(true)
@@ -261,290 +260,307 @@ function App() {
   }
 
   const analyizeImages = async () => {
-    // Initialize image data list from uploaded files
-    const now = new Date()
+    setIsAnalyzing(true)
+    
+    try {
+      // Initialize image data list from uploaded files
+      const now = new Date()
 
-    // Create initial ImageData objects for all uploaded files
-    const initialImageDataList: ImageData[] = [
-      ...uploadedFiles.map((file) => ({
-        id: `original-${file.name}-${file.size}-${file.lastModified}`,
-        file,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        size: {
-          width: 0, // Will be updated after face detection
-          height: 0, // Will be updated after face detection
-          fileSize: file.size
-        },
-        source: 'original' as const,
-        processing: {
-          stages: {
-            uploaded: now
-          }
-        }
-      })),
-      ...uploadedAIFiles.map((file) => ({
-        id: `ai-${file.name}-${file.size}-${file.lastModified}`,
-        file,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        size: {
-          width: 0, // Will be updated after face detection
-          height: 0, // Will be updated after face detection
-          fileSize: file.size
-        },
-        source: 'ai' as const,
-        processing: {
-          stages: {
-            uploaded: now
-          }
-        }
-      }))
-    ]
-
-    // Update the dataset with initial data
-    setImageDataset(prev => ({
-      ...prev,
-      images: initialImageDataList,
-      metadata: {
-        ...prev.metadata,
-        lastUpdated: now,
-        totalImages: initialImageDataList.length,
-        originalImages: uploadedFiles.length,
-        aiImages: uploadedAIFiles.length,
-        referenceImages: 0
-      }
-    }))
-
-    console.log('Initialized image data list:', initialImageDataList)
-
-    // Process face detection for all images
-    const faceDetectionResults = await Promise.all(
-      initialImageDataList.map(async (imageData) => {
-        try {
-          const result = await processFaceFile(imageData.file, {
-            outputSize: 512,    // Larger output size for better quality
-            paddingFactor: 1.5  // 2x padding for much larger crops
-          })
-
-          // Create chip URLs and blobs
-          const chips = result.faces.map((face, faceIndex) => ({
-            faceIndex,
-            url: URL.createObjectURL(face.chip.blob),
-            blob: face.chip.blob,
-            canvas: face.chip.canvas,
-            targetEyes: face.chip.targetEyes,
-            transform: face.chip.transform
-          }))
-
-          // Create landmarks data
-          const landmarks = result.faces.map((face, faceIndex) => ({
-            faceIndex,
-            points: face.landmarks.map(p => ({ x: p.x, y: p.y, z: p.z })),
-            blendshapes: face.blendshapes,
-            matrices: face.matrices
-          }))
-
-          return {
-            ...imageData,
-            size: {
-              ...imageData.size,
-              width: result.imageSize.width,
-              height: result.imageSize.height
-            },
-            faceDetection: {
-              landmarks,
-              chips,
-              imageSize: result.imageSize,
-              processingOptions: {
-                outputSize: 512,
-                paddingFactor: 1.5
-              }
-            },
-            processing: {
-              ...imageData.processing,
-              stages: {
-                ...imageData.processing.stages,
-                faceDetectionCompleted: new Date()
-              }
+      // Create initial ImageData objects for all uploaded files
+      const initialImageDataList: ImageData[] = [
+        ...uploadedFiles.map((file) => ({
+          id: `original-${file.name}-${file.size}-${file.lastModified}`,
+          file,
+          name: file.name,
+          url: URL.createObjectURL(file),
+          size: {
+            width: 0, // Will be updated after face detection
+            height: 0, // Will be updated after face detection
+            fileSize: file.size
+          },
+          source: 'original' as const,
+          processing: {
+            stages: {
+              uploaded: now
             }
           }
-        } catch (error) {
-          console.error(`Failed to process face detection for ${imageData.name}:`, error)
-          return {
-            ...imageData,
-            processing: {
-              ...imageData.processing,
-              errors: [{
-                stage: 'faceDetection',
-                error: error instanceof Error ? error.message : String(error),
-                timestamp: new Date()
-              }]
+        })),
+        ...uploadedAIFiles.map((file) => ({
+          id: `ai-${file.name}-${file.size}-${file.lastModified}`,
+          file,
+          name: file.name,
+          url: URL.createObjectURL(file),
+          size: {
+            width: 0, // Will be updated after face detection
+            height: 0, // Will be updated after face detection
+            fileSize: file.size
+          },
+          source: 'ai' as const,
+          processing: {
+            stages: {
+              uploaded: now
             }
           }
+        }))
+      ]
+
+      // Update the dataset with initial data
+      setImageDataset(prev => ({
+        ...prev,
+        images: initialImageDataList,
+        metadata: {
+          ...prev.metadata,
+          lastUpdated: now,
+          totalImages: initialImageDataList.length,
+          originalImages: uploadedFiles.length,
+          aiImages: uploadedAIFiles.length,
+          referenceImages: 0
         }
-      })
-    )
-
-    // Update dataset with face detection results
-    setImageDataset(prev => ({
-      ...prev,
-      images: faceDetectionResults,
-      metadata: {
-        ...prev.metadata,
-        lastUpdated: new Date()
-      }
-    }))
-
-    // Create overlay data for backward compatibility with existing components
-    const overlayResults = faceDetectionResults
-      .filter(img => img.faceDetection)
-      .map(img => ({
-        id: img.id,
-        imageURL: img.url,
-        imageSize: img.faceDetection!.imageSize,
-        landmarksPerFace: img.faceDetection!.landmarks.map(lm =>
-          lm.points.map(p => ({ x: p.x, y: p.y }))
-        ),
-        chipURLs: img.faceDetection!.chips.map(chip => chip.url),
-        sourceName: img.name,
       }))
 
 
-    // Revoke previous URLs to avoid leaks
-    previousURLsRef.current.forEach((u) => URL.revokeObjectURL(u))
-    previousURLsRef.current = []
-
-    const allURLs: string[] = []
-    overlayResults.forEach((r) => {
-      allURLs.push(r.imageURL, ...r.chipURLs)
-    })
-    previousURLsRef.current = allURLs
-
-    // Set overlays for backward compatibility
-    setOverlays(overlayResults)
-
-    // Convert head shot crops (chips) to File[] format for vector extraction
-    // const headShotFiles = await convertChipsToFiles(results, { includeAllFaces: true })
-
-    const extractor = await getImageFeatureExtractor()
-    const embeddingResults = await Promise.all(
-      faceDetectionResults.map(async (imageData) => {
-        if (!imageData.faceDetection) return imageData
-
-        try {
-          // Generate embeddings for all face chips
-          const faceEmbeddings = await Promise.all(
-            imageData.faceDetection.chips.map(async (chip, faceIndex) => {
-              const response = await fetch(chip.url)
-              const blob = await response.blob()
-              const file = new File([blob], `${imageData.name}_face_${faceIndex}.png`, { type: blob.type })
-
-              const embedding = await extractor(file, { pooling: 'mean', normalize: true })
-              const vector = Array.from(embedding.data as Float32Array)
-
-              return {
-                faceIndex,
-                vector,
-                model: "Xenova/clip-vit-base-patch32",
-                dimensions: vector.length,
-                timestamp: new Date()
-              }
+      // Process face detection for all images
+      const faceDetectionResults = await Promise.all(
+        initialImageDataList.map(async (imageData) => {
+          try {
+            const result = await processFaceFile(imageData.file, {
+              outputSize: 512,    // Larger output size for better quality
+              paddingFactor: 1.5  // 2x padding for much larger crops
             })
-          )
 
-          // Also generate full image embedding
-          const fullImageEmbedding = await extractor(imageData.file, { pooling: 'mean', normalize: true })
-          const fullImageVector = Array.from(fullImageEmbedding.data as Float32Array)
+            // Create chip URLs and blobs
+            const chips = result.faces.map((face, faceIndex) => ({
+              faceIndex,
+              url: URL.createObjectURL(face.chip.blob),
+              blob: face.chip.blob,
+              canvas: face.chip.canvas,
+              targetEyes: face.chip.targetEyes,
+              transform: face.chip.transform
+            }))
 
-          return {
-            ...imageData,
-            embeddings: {
-              fullImage: {
-                vector: fullImageVector,
-                model: "Xenova/clip-vit-base-patch32",
-                dimensions: fullImageVector.length,
-                timestamp: new Date()
+            // Create landmarks data
+            const landmarks = result.faces.map((face, faceIndex) => ({
+              faceIndex,
+              points: face.landmarks.map(p => ({ x: p.x, y: p.y, z: p.z })),
+              blendshapes: face.blendshapes,
+              matrices: face.matrices
+            }))
+
+            return {
+              ...imageData,
+              size: {
+                ...imageData.size,
+                width: result.imageSize.width,
+                height: result.imageSize.height
               },
-              faces: faceEmbeddings
-            },
-            processing: {
-              ...imageData.processing,
-              stages: {
-                ...imageData.processing.stages,
-                embeddingCompleted: new Date()
+              faceDetection: {
+                landmarks,
+                chips,
+                imageSize: result.imageSize,
+                processingOptions: {
+                  outputSize: 512,
+                  paddingFactor: 1.5
+                }
+              },
+              processing: {
+                ...imageData.processing,
+                stages: {
+                  ...imageData.processing.stages,
+                  faceDetectionCompleted: new Date()
+                }
               }
             }
-          }
-        } catch (error) {
-          console.error(`Failed to generate embeddings for ${imageData.name}:`, error)
-          return {
-            ...imageData,
-            processing: {
-              ...imageData.processing,
-              errors: [
-                ...(imageData.processing.errors || []),
-                {
-                  stage: 'embedding',
+          } catch (error) {
+            console.error(`Failed to process face detection for ${imageData.name}:`, error)
+            return {
+              ...imageData,
+              processing: {
+                ...imageData.processing,
+                errors: [{
+                  stage: 'faceDetection',
                   error: error instanceof Error ? error.message : String(error),
                   timestamp: new Date()
-                }
-              ]
+                }]
+              }
             }
           }
+        })
+      )
+
+      // Update dataset with face detection results
+      setImageDataset(prev => ({
+        ...prev,
+        images: faceDetectionResults,
+        metadata: {
+          ...prev.metadata,
+          lastUpdated: new Date()
         }
+      }))
+
+      // Create overlay data for backward compatibility with existing components
+      const overlayResults = faceDetectionResults
+        .filter(img => img.faceDetection)
+        .map(img => ({
+          id: img.id,
+          imageURL: img.url,
+          imageSize: img.faceDetection!.imageSize,
+          landmarksPerFace: img.faceDetection!.landmarks.map(lm =>
+            lm.points.map(p => ({ x: p.x, y: p.y }))
+          ),
+          chipURLs: img.faceDetection!.chips.map(chip => chip.url),
+          sourceName: img.name,
+        }))
+
+
+      // Revoke previous URLs to avoid leaks
+      previousURLsRef.current.forEach((u) => URL.revokeObjectURL(u))
+      previousURLsRef.current = []
+
+      const allURLs: string[] = []
+      overlayResults.forEach((r) => {
+        allURLs.push(r.imageURL, ...r.chipURLs)
       })
-    )
+      previousURLsRef.current = allURLs
 
-    // Update dataset with embedding results
-    setImageDataset(prev => ({
-      ...prev,
-      images: embeddingResults,
-      metadata: {
-        ...prev.metadata,
-        lastUpdated: new Date()
+      // Set overlays for backward compatibility
+      setOverlays(overlayResults)
+
+      // Convert head shot crops (chips) to File[] format for vector extraction
+      // const headShotFiles = await convertChipsToFiles(results, { includeAllFaces: true })
+
+      const extractor = await getImageFeatureExtractor()
+      const embeddingResults = await Promise.all(
+        faceDetectionResults.map(async (imageData) => {
+          if (!imageData.faceDetection) return imageData
+
+          try {
+            // Generate embeddings for all face chips
+            const faceEmbeddings = await Promise.all(
+              imageData.faceDetection.chips.map(async (chip, faceIndex) => {
+                const response = await fetch(chip.url)
+                const blob = await response.blob()
+                const file = new File([blob], `${imageData.name}_face_${faceIndex}.png`, { type: blob.type })
+
+                const embedding = await extractor(file, { pooling: 'mean', normalize: true })
+                const vector = Array.from(embedding.data as Float32Array)
+
+                return {
+                  faceIndex,
+                  vector,
+                  model: "Xenova/clip-vit-base-patch32",
+                  dimensions: vector.length,
+                  timestamp: new Date()
+                }
+              })
+            )
+
+            // Also generate full image embedding
+            const fullImageEmbedding = await extractor(imageData.file, { pooling: 'mean', normalize: true })
+            const fullImageVector = Array.from(fullImageEmbedding.data as Float32Array)
+
+            return {
+              ...imageData,
+              embeddings: {
+                fullImage: {
+                  vector: fullImageVector,
+                  model: "Xenova/clip-vit-base-patch32",
+                  dimensions: fullImageVector.length,
+                  timestamp: new Date()
+                },
+                faces: faceEmbeddings
+              },
+              processing: {
+                ...imageData.processing,
+                stages: {
+                  ...imageData.processing.stages,
+                  embeddingCompleted: new Date()
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to generate embeddings for ${imageData.name}:`, error)
+            return {
+              ...imageData,
+              processing: {
+                ...imageData.processing,
+                errors: [
+                  ...(imageData.processing.errors || []),
+                  {
+                    stage: 'embedding',
+                    error: error instanceof Error ? error.message : String(error),
+                    timestamp: new Date()
+                  }
+                ]
+              }
+            }
+          }
+        })
+      )
+
+      // Update dataset with embedding results
+      setImageDataset(prev => ({
+        ...prev,
+        images: embeddingResults,
+        metadata: {
+          ...prev.metadata,
+          lastUpdated: new Date()
+        }
+      }))
+
+      console.log('Image analysis complete:', embeddingResults)
+
+      // Example: Compare first face embeddings between images (if available)
+      const imagesWithFaces = embeddingResults.filter(img =>
+        img.embeddings?.faces && img.embeddings.faces.length > 0
+      )
+
+      if (imagesWithFaces.length >= 2) {
+        const firstImage = imagesWithFaces[0]
+        const secondImage = imagesWithFaces[1]
+
+        if (firstImage.embeddings?.faces?.[0] && secondImage.embeddings?.faces?.[0]) {
+          const similarity = cosineSimilarity(
+            firstImage.embeddings.faces[0].vector as number[],
+            secondImage.embeddings.faces[0].vector as number[]
+          )
+          console.log(`Face similarity between ${firstImage.name} and ${secondImage.name}:`, similarity)
+        }
       }
-    }))
 
-    console.log('Image analysis complete:', embeddingResults)
-
-    // Example: Compare first face embeddings between images (if available)
-    const imagesWithFaces = embeddingResults.filter(img =>
-      img.embeddings?.faces && img.embeddings.faces.length > 0
-    )
-
-    if (imagesWithFaces.length >= 2) {
-      const firstImage = imagesWithFaces[0]
-      const secondImage = imagesWithFaces[1]
-
-      if (firstImage.embeddings?.faces?.[0] && secondImage.embeddings?.faces?.[0]) {
-        const similarity = cosineSimilarity(
-          firstImage.embeddings.faces[0].vector as number[],
-          secondImage.embeddings.faces[0].vector as number[]
-        )
-        console.log(`Face similarity between ${firstImage.name} and ${secondImage.name}:`, similarity)
+      // Run text similarity analysis if text embeddings are available
+      if (textEmbeddings.length > 0) {
+        console.log('Running text similarity analysis...')
+        await computeTextSimilarityForAllFaces()
+      } else {
+        console.log('Text embeddings not ready, skipping text similarity analysis')
       }
+
+      // Compute similarity to source (first image's face)
+      console.log('Computing similarity to source image...')
+      try {
+        await computeSimilarityToSource()
+        console.log('computeSimilarityToSource completed successfully')
+        
+        // Sort images by similarity to source after analysis is complete
+        console.log('Sorting images by similarity to source...')
+        await sortImagesBySimilarityToSource()
+        console.log('Sorting completed successfully')
+      } catch (error) {
+        console.error('Error in computeSimilarityToSource:', error)
+      }
+
+      // TODO: Add UMAP visualization
+      // TODO: Add comparison matrix generation
+    } catch (error) {
+      console.error('Error during image analysis:', error)
+    } finally {
+      // Always reset isAnalyzing to false, regardless of success or failure
+      setIsAnalyzing(false)
     }
 
-    // Run text similarity analysis if text embeddings are available
-    if (textEmbeddings.length > 0) {
-      console.log('Running text similarity analysis...')
-      await computeTextSimilarityForAllFaces()
-    } else {
-      console.log('Text embeddings not ready, skipping text similarity analysis')
-    }
-
-    // analyze and compare text similarity to source image
-    // We need to use the current state, so we'll call this in a useEffect after text similarity completes
-
-
-    // Compute similarity to source (first image's face)
-    console.log('Computing similarity to source image...')
-    computeSimilarityToSource()
-
-    // TODO: Add UMAP visualization
-    // TODO: Add comparison matrix generation
+    // sort all the images by similarity to source
   }
+
 
   useEffect(() => {
     // Warm up the extractors and load reference images on mount
@@ -572,7 +588,7 @@ function App() {
   }, [getImageFeatureExtractor, getClipTokenizer, getClipTextModel, loadReferenceImages])
 
   // Helper function for cosine similarity (moved from Helpers.ts for direct use)
-  const cosineSimilarity = (a: number[], b: number[]): number => {
+  const cosineSimilarity = useCallback((a: number[], b: number[]): number => {
     if (a.length !== b.length) return NaN;
     let dot = 0;
     let normA = 0;
@@ -586,7 +602,7 @@ function App() {
     }
     const denom = Math.sqrt(normA) * Math.sqrt(normB);
     return denom === 0 ? 0 : dot / denom;
-  };
+  }, []);
 
   // Function to compute text similarity for all face embeddings
   const computeTextSimilarityForAllFaces = useCallback(async () => {
@@ -923,42 +939,54 @@ function App() {
   }, [imageDataset.images])
 
   // Function to compute similarity of all cropped images to the first image's cropped face
-  const computeSimilarityToSource = useCallback(() => {
-    if (imageDataset.images.length === 0) {
-      console.warn('No images available for similarity comparison');
-      return;
-    }
-
-    // Find the first image (source image)
-    const sourceImage = imageDataset.images[0];
-
-    if (!sourceImage.embeddings?.faces || sourceImage.embeddings.faces.length === 0) {
-      console.warn('Source image has no face embeddings available');
-      return;
-    }
-
-    // Use the first face of the source image as reference
-    const sourceFaceEmbedding = sourceImage.embeddings.faces[0];
-    const sourceVector = Array.from(sourceFaceEmbedding.vector as Float32Array | number[]);
-
-    console.log(`Computing similarity to source: ${sourceImage.name} (face ${sourceFaceEmbedding.faceIndex})`);
-
-    // Update all images with similarity calculations
+  const computeSimilarityToSource = useCallback(async () => {
+    console.log('computeSimilarityToSource: Starting execution');
+    
+    // Get current dataset state to avoid stale closure
     setImageDataset(currentDataset => {
+      console.log('computeSimilarityToSource: Inside setImageDataset callback, images count:', currentDataset.images.length);
+      
+      if (currentDataset.images.length === 0) {
+        console.warn('No images available for similarity comparison');
+        return currentDataset;
+      }
+
+      // Find the first image (source image)
+      const sourceImage = currentDataset.images[0];
+      console.log('computeSimilarityToSource: Source image:', sourceImage.name, 'has embeddings:', !!sourceImage.embeddings?.faces);
+
+      if (!sourceImage.embeddings?.faces || sourceImage.embeddings.faces.length === 0) {
+        console.warn('Source image has no face embeddings available');
+        return currentDataset;
+      }
+
+      // Use the first face of the source image as reference
+      const sourceFaceEmbedding = sourceImage.embeddings.faces[0];
+      const sourceVector = Array.from(sourceFaceEmbedding.vector as Float32Array | number[]);
+
+      console.log(`Computing similarity to source: ${sourceImage.name} (face ${sourceFaceEmbedding.faceIndex})`);
+
+      // Update all images with similarity calculations
       const updatedImages = currentDataset.images.map((imageData, imageIndex) => {
+        console.log(`Processing image ${imageIndex}: ${imageData.name}`);
+        
         // Skip the source image itself
         if (imageIndex === 0) {
+          console.log('Skipping source image');
           return imageData;
         }
 
         if (!imageData.embeddings?.faces || imageData.embeddings.faces.length === 0) {
+          console.log(`Image ${imageData.name} has no face embeddings, skipping`);
           return imageData; // Return unchanged if no face embeddings
         }
 
         // Calculate similarity for each face in this image
+        console.log(`Computing similarities for ${imageData.embeddings.faces.length} faces in ${imageData.name}`);
         const similarities = imageData.embeddings.faces.map(faceEmbedding => {
           const faceVector = Array.from(faceEmbedding.vector as Float32Array | number[]);
           const similarity = cosineSimilarity(sourceVector, faceVector);
+          console.log(`Face ${faceEmbedding.faceIndex} similarity: ${similarity}`);
 
           return {
             faceIndex: faceEmbedding.faceIndex,
@@ -985,6 +1013,8 @@ function App() {
         };
       });
 
+      console.log('Similarity to source computation completed, updated images count:', updatedImages.length);
+
       return {
         ...currentDataset,
         images: updatedImages,
@@ -994,9 +1024,82 @@ function App() {
         }
       };
     });
+    
+    console.log('computeSimilarityToSource: Finished execution');
+  }, [cosineSimilarity])
 
-    console.log('Similarity to source computation completed');
-  }, [imageDataset.images, cosineSimilarity])
+  // Function to sort images by similarity to source while keeping the first image as reference
+  const sortImagesBySimilarityToSource = useCallback(async () => {
+    console.log('sortImagesBySimilarityToSource: Starting execution');
+    
+    setImageDataset(currentDataset => {
+      console.log('sortImagesBySimilarityToSource: Inside setImageDataset callback');
+      
+      if (currentDataset.images.length <= 1) {
+        console.warn('Not enough images to sort');
+        return currentDataset;
+      }
+
+      // Keep the first image as reference (source)
+      const [sourceImage, ...otherImages] = currentDataset.images;
+      
+      // Sort other images by their highest similarity score to source
+      const sortedOtherImages = [...otherImages].sort((a, b) => {
+        // Get the highest similarity score for each image
+        const getSimilarityScore = (imageData: ImageData): number => {
+          if (!imageData.computeSimilarityToSource?.similarities || imageData.computeSimilarityToSource.similarities.length === 0) {
+            return -1; // Place images without similarity data at the end
+          }
+          
+          // Return the highest similarity score among all faces in this image
+          return Math.max(...imageData.computeSimilarityToSource.similarities.map(sim => sim.similarity));
+        };
+
+        const similarityA = getSimilarityScore(a);
+        const similarityB = getSimilarityScore(b);
+        
+        // Sort in descending order (highest similarity first)
+        return similarityB - similarityA;
+      });
+
+      console.log('Sorted images by similarity:');
+      sortedOtherImages.forEach((img, index) => {
+        const maxSimilarity = img.computeSimilarityToSource?.similarities ? 
+          Math.max(...img.computeSimilarityToSource.similarities.map(sim => sim.similarity)) : 0;
+        console.log(`${index + 1}. ${img.name}: ${(maxSimilarity * 100).toFixed(1)}%`);
+      });
+
+      const sortedImages = [sourceImage, ...sortedOtherImages];
+
+      // Update overlays to match the new sorted order
+      const sortedOverlayResults = sortedImages
+        .filter(img => img.faceDetection)
+        .map(img => ({
+          id: img.id,
+          imageURL: img.url,
+          imageSize: img.faceDetection!.imageSize,
+          landmarksPerFace: img.faceDetection!.landmarks.map(lm =>
+            lm.points.map(p => ({ x: p.x, y: p.y }))
+          ),
+          chipURLs: img.faceDetection!.chips.map(chip => chip.url),
+          sourceName: img.name,
+        }));
+
+      // Update overlays state to reflect the new order
+      setOverlays(sortedOverlayResults);
+
+      return {
+        ...currentDataset,
+        images: sortedImages,
+        metadata: {
+          ...currentDataset.metadata,
+          lastUpdated: new Date()
+        }
+      };
+    });
+    
+    console.log('sortImagesBySimilarityToSource: Finished execution');
+  }, [])
 
   // Example function to demonstrate accessing data
   const _logDatasetSummary = useCallback(() => {
@@ -1064,12 +1167,11 @@ function App() {
       <div className="p-6">
         <PageTitle />
       </div>
-      
-
+    
 
       <div className="px-6">
-        <div className="flex flex-row gap-4">
-          <div className="card flex flex-col gap-4 items-baseline">
+        <div className="flex flex-row gap-2">
+          <div className="card flex flex-col gap-4 items-baseline w-[50vw]">
             <h3 className="text-sm font-bold text-gray-600">Target Image</h3>
             <ImageDropZone
               onImagesUploaded={handleImagesUploaded}
@@ -1077,7 +1179,7 @@ function App() {
               files={uploadedFiles}
             />
           </div>
-          <div className="card flex flex-col gap-4 items-baseline">
+          <div className="card flex flex-col gap-4 items-baseline w-[50vw]">
           <h3 className="text-sm font-bold text-gray-600">Reference Images (up too 10)</h3>
             <ImageDropZone
               onImagesUploaded={handleAIImagesUploaded}
@@ -1106,6 +1208,7 @@ function App() {
       {/* reserved for future face detection UI */}
       
       <ActionFooter
+        isAnalyzing={isAnalyzing}
         onAnalyzeImages={() => analyizeImages()}
         isAnalyzeDisabled={uploadedFiles.length === 0 || uploadedAIFiles.length === 0}
         isExtractorLoading={isExtractorLoading}

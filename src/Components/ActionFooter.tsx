@@ -1,7 +1,9 @@
 import React from 'react'
 import LoadingComponent from './LoadingComponent'
+import './ActionFooter.css'
 
 interface ActionFooterProps {
+  isAnalyzing: boolean
   onAnalyzeImages: () => void
   isAnalyzeDisabled: boolean
   isExtractorLoading: boolean
@@ -9,6 +11,7 @@ interface ActionFooterProps {
 }
 
 const ActionFooter: React.FC<ActionFooterProps> = ({
+  isAnalyzing,
   onAnalyzeImages,
   isAnalyzeDisabled,
   isExtractorLoading,
@@ -42,10 +45,17 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
             <button
               type="button"
               onClick={onAnalyzeImages}
-              className="px-4 py-2 rounded bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-200 hover:shadow-md disabled:opacity-50 transition-colors"
-              disabled={isAnalyzeDisabled}
+              className="px-4 py-2 rounded bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-200 hover:shadow-md disabled:opacity-50 transition-colors flex items-center gap-2"
+              disabled={isAnalyzeDisabled || isAnalyzing}
             >
-              Analyze Images
+              {isAnalyzing ? (
+                <>
+                  <div className="loader"></div>
+                  <span>Analyzing images</span>
+                </>
+              ) : (
+                'Analyze Images'
+              )}
             </button>
 
             {/* <button
