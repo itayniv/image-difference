@@ -163,7 +163,7 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
             imageData.source === 'original' ? 'bg-blue-500' : 
             imageData.source === 'ai' ? 'bg-purple-500' : 'bg-green-500'
           }`}>
-            {imageData.source.toUpperCase()}
+            {imageData.source === 'original' ? "TARGET" : "REFERENCE"}
           </span>
         </div>
       </div>
