@@ -20,9 +20,6 @@ const LoadingComponent: React.FC<LoadingComponentProps> = ({
   showPercentage = true,
   size = 'medium'
 }) => {
-  // Clamp progress between 0 and 1
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-  const percentage = Math.round(clampedProgress * 100);
 
   const sizeClasses = {
     small: {

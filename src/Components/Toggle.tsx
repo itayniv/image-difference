@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, forwardRef } from "react";
+import { useEffect, useState, useCallback, forwardRef } from "react";
 
 type SizeKey = "sm" | "md" | "lg";
 

@@ -865,78 +865,78 @@ function App() {
     });
   };
 
-  // Helper functions to access imageDataset data
-  const getImagesBySource = useCallback((source: 'original' | 'ai' | 'reference') => {
-    return imageDataset.images.filter(img => img.source === source)
-  }, [imageDataset.images])
+  // // Helper functions to access imageDataset data
+  // const getImagesBySource = useCallback((source: 'original' | 'ai' | 'reference') => {
+  //   return imageDataset.images.filter(img => img.source === source)
+  // }, [imageDataset.images])
 
-  const getImagesWithFaceDetection = useCallback(() => {
-    return imageDataset.images.filter(img => img.faceDetection && img.faceDetection.landmarks.length > 0)
-  }, [imageDataset.images])
+  // const getImagesWithFaceDetection = useCallback(() => {
+  //   return imageDataset.images.filter(img => img.faceDetection && img.faceDetection.landmarks.length > 0)
+  // }, [imageDataset.images])
 
-  const getImagesWithEmbeddings = useCallback(() => {
-    return imageDataset.images.filter(img => img.embeddings)
-  }, [imageDataset.images])
+  // const getImagesWithEmbeddings = useCallback(() => {
+  //   return imageDataset.images.filter(img => img.embeddings)
+  // }, [imageDataset.images])
 
 
 
-  const getAllFaceEmbeddings = useCallback(() => {
-    const faceEmbeddings: Array<{ imageId: string, imageName: string, faceIndex: number, vector: number[] | Float32Array }> = []
+  // const getAllFaceEmbeddings = useCallback(() => {
+  //   const faceEmbeddings: Array<{ imageId: string, imageName: string, faceIndex: number, vector: number[] | Float32Array }> = []
 
-    imageDataset.images.forEach(img => {
-      if (img.embeddings?.faces) {
-        img.embeddings.faces.forEach(face => {
-          faceEmbeddings.push({
-            imageId: img.id,
-            imageName: img.name,
-            faceIndex: face.faceIndex,
-            vector: face.vector
-          })
-        })
-      }
-    })
+  //   imageDataset.images.forEach(img => {
+  //     if (img.embeddings?.faces) {
+  //       img.embeddings.faces.forEach(face => {
+  //         faceEmbeddings.push({
+  //           imageId: img.id,
+  //           imageName: img.name,
+  //           faceIndex: face.faceIndex,
+  //           vector: face.vector
+  //         })
+  //       })
+  //     }
+  //   })
 
-    return faceEmbeddings
-  }, [imageDataset.images])
+  //   return faceEmbeddings
+  // }, [imageDataset.images])
 
-  // Helper function to get images with text similarity analysis
-  const getImagesWithTextSimilarity = useCallback(() => {
-    return imageDataset.images.filter(img => img.textSimilarity && img.textSimilarity.attributes.length > 0)
-  }, [imageDataset.images])
+  // // Helper function to get images with text similarity analysis
+  // const getImagesWithTextSimilarity = useCallback(() => {
+  //   return imageDataset.images.filter(img => img.textSimilarity && img.textSimilarity.attributes.length > 0)
+  // }, [imageDataset.images])
 
-  // Helper function to get top text similarity matches across all images
-  const getTopTextSimilarityMatches = useCallback((topN: number = 10) => {
-    const allMatches: Array<{
-      imageId: string;
-      imageName: string;
-      faceIndex: number;
-      category: string;
-      attribute: string;
-      prompt: string;
-      similarity: number;
-    }> = [];
+  // // Helper function to get top text similarity matches across all images
+  // const getTopTextSimilarityMatches = useCallback((topN: number = 10) => {
+  //   const allMatches: Array<{
+  //     imageId: string;
+  //     imageName: string;
+  //     faceIndex: number;
+  //     category: string;
+  //     attribute: string;
+  //     prompt: string;
+  //     similarity: number;
+  //   }> = [];
 
-    imageDataset.images.forEach(img => {
-      if (img.textSimilarity?.attributes) {
-        img.textSimilarity.attributes.forEach(attr => {
-          allMatches.push({
-            imageId: img.id,
-            imageName: img.name,
-            faceIndex: attr.faceIndex || 0,
-            category: attr.category,
-            attribute: attr.attribute,
-            prompt: attr.prompt,
-            similarity: attr.similarity
-          });
-        });
-      }
-    });
+  //   imageDataset.images.forEach(img => {
+  //     if (img.textSimilarity?.attributes) {
+  //       img.textSimilarity.attributes.forEach(attr => {
+  //         allMatches.push({
+  //           imageId: img.id,
+  //           imageName: img.name,
+  //           faceIndex: attr.faceIndex || 0,
+  //           category: attr.category,
+  //           attribute: attr.attribute,
+  //           prompt: attr.prompt,
+  //           similarity: attr.similarity
+  //         });
+  //       });
+  //     }
+  //   });
 
-    // Sort by similarity (highest first) and take top N
-    return allMatches
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topN);
-  }, [imageDataset.images])
+  //   // Sort by similarity (highest first) and take top N
+  //   return allMatches
+  //     .sort((a, b) => b.similarity - a.similarity)
+  //     .slice(0, topN);
+  // }, [imageDataset.images])
 
   // Function to compute similarity of all cropped images to the first image's cropped face
   const computeSimilarityToSource = useCallback(async () => {
@@ -1101,66 +1101,66 @@ function App() {
     console.log('sortImagesBySimilarityToSource: Finished execution');
   }, [])
 
-  // Example function to demonstrate accessing data
-  const _logDatasetSummary = useCallback(() => {
-    console.log('=== Dataset Summary ===')
-    console.log('Total images:', imageDataset.metadata.totalImages)
-    console.log('Original images:', getImagesBySource('original').length)
-    console.log('AI images:', getImagesBySource('ai').length)
-    console.log('Images with face detection:', getImagesWithFaceDetection().length)
-    console.log('Images with embeddings:', getImagesWithEmbeddings().length)
-    console.log('Images with text similarity:', getImagesWithTextSimilarity().length)
-    console.log('Total face embeddings:', getAllFaceEmbeddings().length)
-    console.log('Total text embeddings:', textEmbeddings.length)
+  // // Example function to demonstrate accessing data
+  // const _logDatasetSummary = useCallback(() => {
+  //   console.log('=== Dataset Summary ===')
+  //   console.log('Total images:', imageDataset.metadata.totalImages)
+  //   console.log('Original images:', getImagesBySource('original').length)
+  //   console.log('AI images:', getImagesBySource('ai').length)
+  //   console.log('Images with face detection:', getImagesWithFaceDetection().length)
+  //   console.log('Images with embeddings:', getImagesWithEmbeddings().length)
+  //   console.log('Images with text similarity:', getImagesWithTextSimilarity().length)
+  //   console.log('Total face embeddings:', getAllFaceEmbeddings().length)
+  //   console.log('Total text embeddings:', textEmbeddings.length)
 
-    // Log processing stages
-    imageDataset.images.forEach(img => {
-      console.log(`${img.name} processing stages:`, {
-        uploaded: img.processing.stages.uploaded,
-        faceDetection: img.processing.stages.faceDetectionCompleted ? 'completed' : 'pending',
-        embeddings: img.processing.stages.embeddingCompleted ? 'completed' : 'pending',
-        textSimilarity: img.processing.stages.textSimilarityCompleted ? 'completed' : 'pending',
-        similarityToSource: img.processing.stages.similarityToSourceCompleted ? 'completed' : 'pending',
-        textSimilarityToSource: img.processing.stages.textSimilarityToSourceCompleted ? 'completed' : 'pending',
-        errors: img.processing.errors?.length || 0
-      })
+  //   // Log processing stages
+  //   imageDataset.images.forEach(img => {
+  //     console.log(`${img.name} processing stages:`, {
+  //       uploaded: img.processing.stages.uploaded,
+  //       faceDetection: img.processing.stages.faceDetectionCompleted ? 'completed' : 'pending',
+  //       embeddings: img.processing.stages.embeddingCompleted ? 'completed' : 'pending',
+  //       textSimilarity: img.processing.stages.textSimilarityCompleted ? 'completed' : 'pending',
+  //       similarityToSource: img.processing.stages.similarityToSourceCompleted ? 'completed' : 'pending',
+  //       textSimilarityToSource: img.processing.stages.textSimilarityToSourceCompleted ? 'completed' : 'pending',
+  //       errors: img.processing.errors?.length || 0
+  //     })
 
-      // Log text similarity results if available
-      if (img.textSimilarity) {
-        console.log(`${img.name} text similarity results:`)
-        img.textSimilarity.bestMatches.forEach(match => {
-          console.log(`  ${match.category}: ${match.attribute} (similarity: ${match.similarity.toFixed(3)}, face: ${match.faceIndex})`)
-        })
-      }
+  //     // Log text similarity results if available
+  //     if (img.textSimilarity) {
+  //       console.log(`${img.name} text similarity results:`)
+  //       img.textSimilarity.bestMatches.forEach(match => {
+  //         console.log(`  ${match.category}: ${match.attribute} (similarity: ${match.similarity.toFixed(3)}, face: ${match.faceIndex})`)
+  //       })
+  //     }
 
-      // Log similarity to source results if available
-      if (img.computeSimilarityToSource) {
-        console.log(`${img.name} similarity to source results:`)
-        img.computeSimilarityToSource.similarities.forEach(sim => {
-          console.log(`  Face ${sim.faceIndex}: ${sim.similarity.toFixed(3)} (source: face ${sim.sourceFaceIndex})`)
-        })
-      }
+  //     // Log similarity to source results if available
+  //     if (img.computeSimilarityToSource) {
+  //       console.log(`${img.name} similarity to source results:`)
+  //       img.computeSimilarityToSource.similarities.forEach(sim => {
+  //         console.log(`  Face ${sim.faceIndex}: ${sim.similarity.toFixed(3)} (source: face ${sim.sourceFaceIndex})`)
+  //       })
+  //     }
 
-      // Log text similarity to source results if available
-      if (img.textSimilarityToSource) {
-        console.log(`${img.name} text similarity to source results:`)
-        console.log(`  Summary: ${img.textSimilarityToSource.summary.matchingCategories}/${img.textSimilarityToSource.summary.totalCategories} matching (${img.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%)`)
-        img.textSimilarityToSource.categoryComparisons.forEach(comp => {
-          const matchIcon = comp.isMatching ? '✓' : '✗';
-          console.log(`  ${matchIcon} ${comp.category}: ${comp.sourceAttribute} → ${comp.currentAttribute} ${comp.isMatching ? '(match)' : '(different)'}`)
-        })
-      }
-    })
+  //     // Log text similarity to source results if available
+  //     if (img.textSimilarityToSource) {
+  //       console.log(`${img.name} text similarity to source results:`)
+  //       console.log(`  Summary: ${img.textSimilarityToSource.summary.matchingCategories}/${img.textSimilarityToSource.summary.totalCategories} matching (${img.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%)`)
+  //       img.textSimilarityToSource.categoryComparisons.forEach(comp => {
+  //         const matchIcon = comp.isMatching ? '✓' : '✗';
+  //         console.log(`  ${matchIcon} ${comp.category}: ${comp.sourceAttribute} → ${comp.currentAttribute} ${comp.isMatching ? '(match)' : '(different)'}`)
+  //       })
+  //     }
+  //   })
 
-    // Log top text similarity matches across all images
-    if (getImagesWithTextSimilarity().length > 0) {
-      console.log('\n=== Top Text Similarity Matches ===')
-      const topMatches = getTopTextSimilarityMatches(15)
-      topMatches.forEach((match, index) => {
-        console.log(`${index + 1}. ${match.imageName} (face ${match.faceIndex}) - ${match.category}: ${match.attribute} (${match.similarity.toFixed(3)})`)
-      })
-    }
-  }, [imageDataset, getImagesBySource, getImagesWithFaceDetection, getImagesWithEmbeddings, getImagesWithTextSimilarity, getAllFaceEmbeddings, textEmbeddings.length, getTopTextSimilarityMatches])
+  //   // Log top text similarity matches across all images
+  //   if (getImagesWithTextSimilarity().length > 0) {
+  //     console.log('\n=== Top Text Similarity Matches ===')
+  //     const topMatches = getTopTextSimilarityMatches(15)
+  //     topMatches.forEach((match, index) => {
+  //       console.log(`${index + 1}. ${match.imageName} (face ${match.faceIndex}) - ${match.category}: ${match.attribute} (${match.similarity.toFixed(3)})`)
+  //     })
+  //   }
+  // }, [imageDataset, getImagesBySource, getImagesWithFaceDetection, getImagesWithEmbeddings, getImagesWithTextSimilarity, getAllFaceEmbeddings, textEmbeddings.length, getTopTextSimilarityMatches])
 
   return (
     <div className="relative w-full h-full min-h-screen bg-gray-100 pb-20">
