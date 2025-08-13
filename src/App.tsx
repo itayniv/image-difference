@@ -22,9 +22,14 @@ env.useBrowserCache = false
 const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32"; // image model
 
 
-import img01 from './assets/ref_photos/ref_closeup_02.png'
-import img02 from './assets/ref_photos/itay_cu3.jpeg'
-// import img03 from './assets/ref_photos/itay_cu2.jpeg'
+import img01 from './assets/ref_photos/ref_closeup_01.png'
+import img02 from './assets/ref_photos/ref_closeup_02.png'
+import img03 from './assets/ref_photos/man_beard.jpeg'
+import img04 from './assets/ref_photos/woman_01.jpeg'
+import img05 from './assets/ref_photos/smiling.jpeg'
+import img06 from './assets/ref_photos/african_american_01.jpeg'
+import img07 from './assets/ref_photos/man_beard_glasses.jpeg'
+import img08 from './assets/ref_photos/young_girl.jpeg'
 
 
 function App() {
@@ -84,9 +89,14 @@ function App() {
   const loadReferenceImages = useCallback(async () => {
     try {
       const imageUrls = [
-
-        { url: img01, name: 'ref_closeup_02.png' },
-        { url: img02, name: 'itay_cu3.jpeg' }
+        { url: img01, name: 'ref_closeup_01.png' },
+        { url: img02, name: 'ref_closeup_02.jpeg' },
+        { url: img03, name: 'man_beard.jpeg' },
+        { url: img04, name: 'woman_01.jpeg' },
+        { url: img05, name: 'smiling.jpeg' },
+        { url: img06, name: 'african_american_01.jpeg' },
+        { url: img07, name: 'man_beard_glasses.jpeg' },
+        { url: img08, name: 'young_girl.jpeg' }
       ]
 
       const files = await Promise.all(
