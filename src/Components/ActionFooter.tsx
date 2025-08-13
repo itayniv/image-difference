@@ -26,7 +26,7 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
             {isExtractorLoading && (
               <LoadingComponent
                 progress={loadingProgress}
-                message="Loading AI models and initializing..."
+                message="Loading models and initializing..."
                 size="small"
                 className="w-72 shadow-lg bg-white"
               />
