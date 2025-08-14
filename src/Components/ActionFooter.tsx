@@ -17,6 +17,16 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
   isExtractorLoading,
   loadingProgress
 }) => {
+  const isAvailable = !isAnalyzeDisabled && !isAnalyzing && !isExtractorLoading
+
+  const analyzeButtonClasses = [
+    'px-4 py-2 rounded text-white transition-colors flex items-center gap-2',
+    isAnalyzing
+      ? 'bg-[#b39afd]'
+      : isAvailable
+      ? 'bg-[#4a26fd] hover:bg-[#3b1fe0]'
+      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+  ].join(' ')
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
       <div className="mx-auto px-4 py-4">
@@ -45,8 +55,8 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
             <button
               type="button"
               onClick={onAnalyzeImages}
-              className="px-4 py-2 rounded bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-200 hover:shadow-md disabled:opacity-50 transition-colors flex items-center gap-2"
-              disabled={isAnalyzeDisabled || isAnalyzing}
+              className={analyzeButtonClasses}
+              disabled={isAnalyzeDisabled || isAnalyzing || isExtractorLoading}
             >
               {isAnalyzing ? (
                 <>

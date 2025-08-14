@@ -12,7 +12,7 @@ const PageTitle: React.FC<PageTitleProps> = ({ className = '' }) => {
         Image Analyzer
       </p>
       <p className="text-sm text-gray-600 leading-relaxed">
-        compare a photo to reference images to find similarities and patterns
+        Compare a photo to reference images to find similarities and patterns
       </p>
     </div>
   );

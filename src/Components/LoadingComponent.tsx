@@ -25,7 +25,7 @@ const LoadingComponent: React.FC<LoadingComponentProps> = ({
     small: {
       container: 'p-3',
       bar: 'h-2',
-      text: 'text-sm'
+      text: 'text-xs'
     },
     medium: {
       container: 'p-4',
