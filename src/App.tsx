@@ -2,12 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import ImageDropZone from './Components/ImageDropZone'
 import { pipeline, env } from '@huggingface/transformers'
-// import { compareOriginalToAI, extractVectorsFromFiles, convertChipsToFiles, convertProcessResultsToFiles } from './Components/Helpers';
-// import { UMAP } from 'umap-js';
 import { processFaceFile } from './Components/faceLandmarker'
 import ImageWithLandmarks from './Components/ImageWithLandmarksHelper'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
+import OpenaiHandler from './Components/OpenAIHandler'
 
 import ActionFooter from './Components/ActionFooter'
 import PageTitle from './Components/PageTitle'
@@ -559,6 +558,16 @@ function App() {
         console.error('Error in computeSimilarityToSource:', error)
       }
 
+      // run openai handler to create a text description of similarities and differences between the images
+      try {
+        console.log('Generating OpenAI narratives...')
+        await generateOpenAiNarrativesForAllImages()
+        console.log('OpenAI narratives generation completed')
+      } catch (error) {
+        console.error('Failed generating OpenAI narratives:', error)
+      }
+      
+      
       // TODO: Add UMAP visualization
       // TODO: Add comparison matrix generation
     } catch (error) {
@@ -613,6 +622,9 @@ function App() {
     const denom = Math.sqrt(normA) * Math.sqrt(normB);
     return denom === 0 ? 0 : dot / denom;
   }, []);
+
+
+
 
   // Function to compute text similarity for all face embeddings
   const computeTextSimilarityForAllFaces = useCallback(async () => {
@@ -1111,66 +1123,52 @@ function App() {
     console.log('sortImagesBySimilarityToSource: Finished execution');
   }, [])
 
-  // // Example function to demonstrate accessing data
-  // const _logDatasetSummary = useCallback(() => {
-  //   console.log('=== Dataset Summary ===')
-  //   console.log('Total images:', imageDataset.metadata.totalImages)
-  //   console.log('Original images:', getImagesBySource('original').length)
-  //   console.log('AI images:', getImagesBySource('ai').length)
-  //   console.log('Images with face detection:', getImagesWithFaceDetection().length)
-  //   console.log('Images with embeddings:', getImagesWithEmbeddings().length)
-  //   console.log('Images with text similarity:', getImagesWithTextSimilarity().length)
-  //   console.log('Total face embeddings:', getAllFaceEmbeddings().length)
-  //   console.log('Total text embeddings:', textEmbeddings.length)
+  // Build a concise prompt for OpenAI describing similarities and differences
+  const buildOpenAiPromptForImage = useCallback((image: ImageData, source: ImageData) => {
+    const header = `You are comparing a target image to a source (reference) face. Write a concise 2-4 sentence paragraph, plain English, describing the main similarities and differences. Focus on what stands out. Avoid hedging. Keep it under 90 words.`;
 
-  //   // Log processing stages
-  //   imageDataset.images.forEach(img => {
-  //     console.log(`${img.name} processing stages:`, {
-  //       uploaded: img.processing.stages.uploaded,
-  //       faceDetection: img.processing.stages.faceDetectionCompleted ? 'completed' : 'pending',
-  //       embeddings: img.processing.stages.embeddingCompleted ? 'completed' : 'pending',
-  //       textSimilarity: img.processing.stages.textSimilarityCompleted ? 'completed' : 'pending',
-  //       similarityToSource: img.processing.stages.similarityToSourceCompleted ? 'completed' : 'pending',
-  //       textSimilarityToSource: img.processing.stages.textSimilarityToSourceCompleted ? 'completed' : 'pending',
-  //       errors: img.processing.errors?.length || 0
-  //     })
+    const summary = image.textSimilarityToSource?.summary
+      ? `Overall: ${image.textSimilarityToSource.summary.matchingCategories}/${image.textSimilarityToSource.summary.totalCategories} categories match (${image.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%).`
+      : 'Overall: summary unavailable.';
 
-  //     // Log text similarity results if available
-  //     if (img.textSimilarity) {
-  //       console.log(`${img.name} text similarity results:`)
-  //       img.textSimilarity.bestMatches.forEach(match => {
-  //         console.log(`  ${match.category}: ${match.attribute} (similarity: ${match.similarity.toFixed(3)}, face: ${match.faceIndex})`)
-  //       })
-  //     }
+    const lines = (image.textSimilarityToSource?.categoryComparisons || []).map(c => {
+      const status = c.isMatching ? 'match' : 'different';
+      const src = `${c.sourceAttribute} (${(c.sourceSimilarity * 100).toFixed(0)}%)`;
+      const cur = `${c.currentAttribute} (${(c.currentSimilarity * 100).toFixed(0)}%)`;
+      return `- ${c.category}: ${status}; source=${src}; current=${cur}`;
+    });
 
-  //     // Log similarity to source results if available
-  //     if (img.computeSimilarityToSource) {
-  //       console.log(`${img.name} similarity to source results:`)
-  //       img.computeSimilarityToSource.similarities.forEach(sim => {
-  //         console.log(`  Face ${sim.faceIndex}: ${sim.similarity.toFixed(3)} (source: face ${sim.sourceFaceIndex})`)
-  //       })
-  //     }
+    const detailsBlock = lines.slice(0, 24).join('\n'); // cap to avoid huge prompts
 
-  //     // Log text similarity to source results if available
-  //     if (img.textSimilarityToSource) {
-  //       console.log(`${img.name} text similarity to source results:`)
-  //       console.log(`  Summary: ${img.textSimilarityToSource.summary.matchingCategories}/${img.textSimilarityToSource.summary.totalCategories} matching (${img.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%)`)
-  //       img.textSimilarityToSource.categoryComparisons.forEach(comp => {
-  //         const matchIcon = comp.isMatching ? '✓' : '✗';
-  //         console.log(`  ${matchIcon} ${comp.category}: ${comp.sourceAttribute} → ${comp.currentAttribute} ${comp.isMatching ? '(match)' : '(different)'}`)
-  //       })
-  //     }
-  //   })
+    return `${header}\nSource image name: ${source.name}\nTarget image name: ${image.name}\n${summary}\nDetails:\n${detailsBlock}\n\nWrite the paragraph now:`;
+  }, []);
 
-  //   // Log top text similarity matches across all images
-  //   if (getImagesWithTextSimilarity().length > 0) {
-  //     console.log('\n=== Top Text Similarity Matches ===')
-  //     const topMatches = getTopTextSimilarityMatches(15)
-  //     topMatches.forEach((match, index) => {
-  //       console.log(`${index + 1}. ${match.imageName} (face ${match.faceIndex}) - ${match.category}: ${match.attribute} (${match.similarity.toFixed(3)})`)
-  //     })
-  //   }
-  // }, [imageDataset, getImagesBySource, getImagesWithFaceDetection, getImagesWithEmbeddings, getImagesWithTextSimilarity, getAllFaceEmbeddings, textEmbeddings.length, getTopTextSimilarityMatches])
+  // Generate OpenAI narratives for all images that have textSimilarityToSource
+  const generateOpenAiNarrativesForAllImages = useCallback(async () => {
+
+    try {
+      const datasetSnapshot = imageDataset; // local snapshot
+      if (!datasetSnapshot || datasetSnapshot.images.length === 0) return;
+
+      const sourceImage = datasetSnapshot.images[0];
+      const tasks = datasetSnapshot.images.map(async (img, index) => {
+        // Prefer to generate for non-source images with available text similarity
+        if (index === 0 || !img.textSimilarityToSource || !img.textSimilarityToSource.categoryComparisons?.length) {
+          return { id: img.id, result: null as null | { summary: string; model?: string; promptPreview?: string; error?: string } };
+        }
+
+        const prompt = buildOpenAiPromptForImage(img, sourceImage);
+
+        console.log("---- generateOpenAiNarrativesForAllImages: prompt:", prompt)
+      });
+
+
+    } catch (e) {
+      console.error('generateOpenAiNarrativesForAllImages failed:', e);
+    }
+  }, [imageDataset, buildOpenAiPromptForImage]);
+
+
 
   return (
     <div className="relative w-full h-full min-h-screen bg-gray-100 pb-20">

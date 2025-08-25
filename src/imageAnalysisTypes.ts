@@ -141,6 +141,15 @@ export interface ImageData {
     };
   };
   
+  // OpenAI-generated narrative summarizing similarities/differences to source
+  openAiNarrative?: {
+    summary: string; // short paragraph from OpenAI
+    model?: string; // model used
+    promptPreview?: string; // optional for debugging
+    timestamp: Date;
+    error?: string; // if generation failed
+  };
+  
   // Processing metadata
   processing: {
     stages: {
@@ -151,6 +160,7 @@ export interface ImageData {
       comparisonCompleted?: Date;
       similarityToSourceCompleted?: Date;
       textSimilarityToSourceCompleted?: Date;
+      openAiNarrativeCompleted?: Date;
     };
     errors?: Array<{
       stage: string;
