@@ -142,6 +142,16 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
           </div>
         )}
 
+        {/* OpenAI Narrative Summary */}
+        {imageData.openAiNarrative?.summary && (
+          <div className="mb-2">
+            <h6 className="text-xs font-medium text-gray-700 mb-1">AI Summary:</h6>
+            <div className="text-xs bg-white p-2 rounded border">
+              <p className="text-gray-700 leading-relaxed">{imageData.openAiNarrative.summary}</p>
+            </div>
+          </div>
+        )}
+
         {/* Processing Errors */}
         {imageData.processing.errors && imageData.processing.errors.length > 0 && (
           <div className="mb-2">
