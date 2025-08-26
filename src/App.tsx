@@ -147,18 +147,14 @@ function App() {
 
   // Monitor imageDataset changes
   useEffect(() => {
-    console.log('Image Dataset Updated:', imageDataset)
-    console.log('Total Images:', imageDataset.metadata.totalImages)
-    console.log('Original Images:', imageDataset.metadata.originalImages)
-    console.log('AI Images:', imageDataset.metadata.aiImages)
 
     // Example: Access individual image data
     if (imageDataset.images.length > 0) {
-      console.log('First image data:', imageDataset.images[0])
+      // console.log('First image data:', imageDataset.images[0])
 
       // Check if first image has face detection results
       if (imageDataset.images[0].faceDetection) {
-        console.log('First image has', imageDataset.images[0].faceDetection.landmarks.length, 'faces detected')
+        // console.log('First image has', imageDataset.images[0].faceDetection.landmarks.length, 'faces detected')
       }
 
       // Check if first image has embeddings
@@ -548,23 +544,13 @@ function App() {
       console.log('Computing similarity to source image...')
       try {
         await computeSimilarityToSource()
-        console.log('computeSimilarityToSource completed successfully')
-        
+
         // Sort images by similarity to source after analysis is complete
         console.log('Sorting images by similarity to source...')
         await sortImagesBySimilarityToSource()
         console.log('Sorting completed successfully')
       } catch (error) {
         console.error('Error in computeSimilarityToSource:', error)
-      }
-
-      // run openai handler to create a text description of similarities and differences between the images
-      try {
-        console.log('Generating OpenAI narratives...')
-        await generateOpenAiNarrativesForAllImages()
-        console.log('OpenAI narratives generation completed')
-      } catch (error) {
-        console.error('Failed generating OpenAI narratives:', error)
       }
       
       
@@ -1145,23 +1131,107 @@ function App() {
 
   // Generate OpenAI narratives for all images that have textSimilarityToSource
   const generateOpenAiNarrativesForAllImages = useCallback(async () => {
-
     try {
       const datasetSnapshot = imageDataset; // local snapshot
       if (!datasetSnapshot || datasetSnapshot.images.length === 0) return;
 
       const sourceImage = datasetSnapshot.images[0];
+
+      // Prepare OpenAI calls for all eligible images in parallel
       const tasks = datasetSnapshot.images.map(async (img, index) => {
-        // Prefer to generate for non-source images with available text similarity
+        // Only generate for non-source images with available text similarity-to-source
         if (index === 0 || !img.textSimilarityToSource || !img.textSimilarityToSource.categoryComparisons?.length) {
           return { id: img.id, result: null as null | { summary: string; model?: string; promptPreview?: string; error?: string } };
         }
 
         const prompt = buildOpenAiPromptForImage(img, sourceImage);
 
-        console.log("---- generateOpenAiNarrativesForAllImages: prompt:", prompt)
+        try {
+          const data = await OpenaiHandler({ prompt });
+          const modelUsed: string | undefined = (data && (data.model as string)) || 'gpt-4.1-nano';
+          const choice0 = data?.choices?.[0];
+          const content: string = (choice0?.message?.content ?? choice0?.text ?? '').toString();
+
+          return {
+            id: img.id,
+            result: {
+              summary: content,
+              model: modelUsed,
+              promptPreview: prompt.slice(0, 200)
+            } as { summary: string; model?: string; promptPreview?: string; error?: string }
+          };
+        } catch (err: any) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          return {
+            id: img.id,
+            result: {
+              summary: '',
+              promptPreview: prompt.slice(0, 200),
+              error: errorMessage
+            } as { summary: string; model?: string; promptPreview?: string; error?: string }
+          };
+        }
       });
 
+      const results = await Promise.all(tasks);
+
+      // Apply results to dataset in a single state update
+      setImageDataset(currentDataset => {
+        const resultsById = new Map(results.map(r => [r.id, r.result]));
+
+        const updatedImages = currentDataset.images.map(imageData => {
+          const res = resultsById.get(imageData.id);
+          if (!res) return imageData; // no-op when not processed
+
+          // If result is null, leave unchanged
+          if (res === null) return imageData;
+
+          // If generation produced an error, record it
+          if (res.error) {
+            return {
+              ...imageData,
+              processing: {
+                ...imageData.processing,
+                errors: [
+                  ...(imageData.processing.errors || []),
+                  {
+                    stage: 'openAiNarrative',
+                    error: res.error,
+                    timestamp: new Date()
+                  }
+                ]
+              }
+            };
+          }
+
+          // Normal successful update
+          return {
+            ...imageData,
+            openAiNarrative: {
+              summary: res.summary,
+              model: res.model,
+              promptPreview: res.promptPreview,
+              timestamp: new Date()
+            },
+            processing: {
+              ...imageData.processing,
+              stages: {
+                ...imageData.processing.stages,
+                openAiNarrativeCompleted: new Date()
+              }
+            }
+          };
+        });
+
+        return {
+          ...currentDataset,
+          images: updatedImages,
+          metadata: {
+            ...currentDataset.metadata,
+            lastUpdated: new Date()
+          }
+        };
+      });
 
     } catch (e) {
       console.error('generateOpenAiNarrativesForAllImages failed:', e);
@@ -1169,6 +1239,23 @@ function App() {
   }, [imageDataset, buildOpenAiPromptForImage]);
 
 
+
+  // After textSimilarityToSource is computed, trigger OpenAI narratives for images missing it
+  useEffect(() => {
+    const imagesNeedingNarrative = imageDataset.images.filter((img, index) =>
+      index > 0 &&
+      !!img.textSimilarityToSource?.categoryComparisons?.length &&
+      !img.openAiNarrative
+    );
+
+    if (imagesNeedingNarrative.length > 0) {
+      (async () => {
+        console.log('Generating OpenAI narratives for', imagesNeedingNarrative.length, 'images...')
+        await generateOpenAiNarrativesForAllImages();
+        console.log('OpenAI narratives generation completed')
+      })();
+    }
+  }, [imageDataset.images, generateOpenAiNarrativesForAllImages]);
 
   return (
     <div className="relative w-full h-full min-h-screen bg-gray-100 pb-20">
