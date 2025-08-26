@@ -69,10 +69,10 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
     if (!imageData) return null;
 
     return (
-      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">   
+      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
 
-     {/* Similarity to Source */}
-     {imageData.computeSimilarityToSource?.similarities && imageData.computeSimilarityToSource.similarities.length > 0 && (
+        {/* Similarity to Source */}
+        {imageData.computeSimilarityToSource?.similarities && imageData.computeSimilarityToSource.similarities.length > 0 && (
           <div className="mb-2">
             <h6 className="text-xs font-medium text-gray-700 mb-1">Source Similarity:</h6>
             <div className="space-y-1">
@@ -84,6 +84,16 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* OpenAI Narrative Summary */}
+        {imageData.openAiNarrative?.summary && (
+          <div className="mb-2">
+            <h6 className="text-xs font-medium text-gray-700 mb-1">AI Summary:</h6>
+            <div className="text-xs bg-white p-2 rounded border">
+              <p className="text-gray-700 leading-relaxed">{imageData.openAiNarrative.summary}</p>
             </div>
           </div>
         )}
@@ -112,20 +122,18 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
             <div className="mb-2 text-xs bg-gray-50 p-2 rounded border">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Overall Match</span>
-                <span className={`font-medium ${
-                  imageData.textSimilarityToSource.summary.matchingPercentage > 70 ? 'text-green-600' :
-                  imageData.textSimilarityToSource.summary.matchingPercentage > 50 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {imageData.textSimilarityToSource.summary.matchingCategories}/{imageData.textSimilarityToSource.summary.totalCategories} 
+                <span className={`font-medium ${imageData.textSimilarityToSource.summary.matchingPercentage > 70 ? 'text-green-600' :
+                    imageData.textSimilarityToSource.summary.matchingPercentage > 50 ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                  {imageData.textSimilarityToSource.summary.matchingCategories}/{imageData.textSimilarityToSource.summary.totalCategories}
                   ({imageData.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%)
                 </span>
               </div>
             </div>
             <div className="space-y-1">
               {imageData.textSimilarityToSource.categoryComparisons.map((comp, idx) => (
-                <div key={idx} className={`text-xs p-2 rounded border ${
-                  comp.isMatching ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                }`}>
+                <div key={idx} className={`text-xs p-2 rounded border ${comp.isMatching ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                  }`}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium text-gray-700 capitalize">{comp.category}</span>
                     <span className={`text-xs ${comp.isMatching ? 'text-green-600' : 'text-red-600'}`}>
@@ -138,16 +146,6 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* OpenAI Narrative Summary */}
-        {imageData.openAiNarrative?.summary && (
-          <div className="mb-2">
-            <h6 className="text-xs font-medium text-gray-700 mb-1">AI Summary:</h6>
-            <div className="text-xs bg-white p-2 rounded border">
-              <p className="text-gray-700 leading-relaxed">{imageData.openAiNarrative.summary}</p>
             </div>
           </div>
         )}
@@ -169,10 +167,9 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
 
         {/* Image source indicator */}
         <div className="text-xs -ml-3 flex flex-row items-center  p-2">
-          <span className={`ml-1 px-2 py-0.5 rounded text-white text-xs ${
-            imageData.source === 'original' ? 'bg-blue-500' : 
-            imageData.source === 'ai' ? 'bg-purple-500' : 'bg-green-500'
-          }`}>
+          <span className={`ml-1 px-2 py-0.5 rounded text-white text-xs ${imageData.source === 'original' ? 'bg-blue-500' :
+              imageData.source === 'ai' ? 'bg-purple-500' : 'bg-green-500'
+            }`}>
             {imageData.source === 'original' ? "TARGET" : "REFERENCE"}
           </span>
         </div>
@@ -181,11 +178,10 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
   };
 
   const renderImageCard = (result: ProcessedImageResult, isReference = false) => (
-    <div 
-      key={result.id} 
-      className={`border rounded-xl p-4 bg-white shadow-sm pb-8 ${
-        isReference ? 'sticky top-4' : 'flex-grow min-w-0 max-w-full sm:max-w-[calc(50%-0.5rem)] lg:max-w-[calc(33.333%-0.75rem)]'
-      }`}
+    <div
+      key={result.id}
+      className={`border rounded-xl p-4 bg-white shadow-sm pb-8 ${isReference ? 'sticky top-4' : 'flex-grow min-w-0 max-w-full sm:max-w-[calc(50%-0.5rem)] lg:max-w-[calc(33.333%-0.75rem)]'
+        }`}
       style={!isReference ? { flexBasis: 'calc(33.333% - 0.75rem)' } : undefined}
     >
       {/* Source image name */}
@@ -225,8 +221,8 @@ export const ImageWithLandmarks: React.FC<ImageWithLandmarksProps> = ({
             {result.chipURLs.map((url, idx) => (
               <div key={`${result.id}-chip-${idx}`} className="flex flex-col items-center">
                 <div className="relative group w-full">
-                  <img 
-                    src={url} 
+                  <img
+                    src={url}
                     alt={`Face ${idx + 1} from ${result.sourceName}`}
                     className="w-full h-auto rounded border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
                   />
@@ -290,12 +286,12 @@ export const createProcessedImageResults = async (
       const result = faceDetectionResults[index];
       const imageURL = URL.createObjectURL(file);
       const chipURLs = result.faces.map((face) => URL.createObjectURL(face.chip.blob));
-      
+
       return {
         id: `${file.name}-${file.size}-${file.lastModified}`,
         imageURL,
         imageSize: result.imageSize,
-        landmarksPerFace: result.faces.map((face) => 
+        landmarksPerFace: result.faces.map((face) =>
           face.landmarks.map((point) => ({ x: point.x, y: point.y }))
         ),
         chipURLs,
