@@ -190,7 +190,6 @@ function App() {
   }, []);
 
 
-
   const embedTexts = useCallback(async (prompts: string[]): Promise<Array<{ prompt: string, vector: Float32Array }>> => {
     const cache = textCacheRef.current;
     const toRun: string[] = [];
