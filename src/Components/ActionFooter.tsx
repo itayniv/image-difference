@@ -67,33 +67,6 @@ const ActionFooter: React.FC<ActionFooterProps> = ({
                 'Analyze Images'
               )}
             </button>
-
-            {/* <button
-              type="button"
-              onClick={onLogDatasetSummary}
-              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-              disabled={isLogDisabled}
-            >
-              Log Dataset Summary
-            </button> */}
-  {/* 
-            <button
-              type="button"
-              onClick={onComputeTextSimilarity}
-              className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-              disabled={isTextSimilarityDisabled}
-            >
-              Compute Text Similarity
-            </button> */}
-
-            {/* <button
-              type="button"
-              onClick={onComputeSimilarityToSource}
-              className="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 transition-colors"
-              disabled={isSimilarityToSourceDisabled}
-            >
-              Compute Similarity to Source
-            </button> */}
           </div>
         </div>
       </div>

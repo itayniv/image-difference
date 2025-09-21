@@ -7,7 +7,6 @@ import ImageWithLandmarks from './Components/ImageWithLandmarksHelper'
 import { ATTRIBUTES } from './Components/Attributes'
 import { compilePrompts } from './Components/Helpers'
 import OpenaiHandler from './Components/OpenAIHandler'
-
 import ActionFooter from './Components/ActionFooter'
 import PageTitle from './Components/PageTitle'
 import type { ImageData, ImageAnalysisDataset } from './imageAnalysisTypes'
@@ -557,9 +556,6 @@ function App() {
       // TODO: Add comparison matrix generation
     } catch (error) {
       console.error('Error during image analysis:', error)
-    } finally {
-      // Always reset isAnalyzing to false, regardless of success or failure
-      setIsAnalyzing(false)
     }
 
     // sort all the images by similarity to source
@@ -1110,7 +1106,7 @@ function App() {
 
   // Build a concise prompt for OpenAI describing similarities and differences
   const buildOpenAiPromptForImage = useCallback((image: ImageData, source: ImageData) => {
-    const header = `You are comparing a target image to a source (reference) face. Write a concise 2-4 sentence paragraph, plain English, describing the main similarities and differences. Focus on what stands out. Avoid hedging. Keep it under 90 words.`;
+    const header = `You are comparing a target image to a source (reference) face. Write a concise 2-4 sentence paragraph, plain English, describing the main similarities and differences. Focus on what stands out. Avoid hedging. Keep it under 70 words.`;
 
     const summary = image.textSimilarityToSource?.summary
       ? `Overall: ${image.textSimilarityToSource.summary.matchingCategories}/${image.textSimilarityToSource.summary.totalCategories} categories match (${image.textSimilarityToSource.summary.matchingPercentage.toFixed(1)}%).`
@@ -1144,6 +1140,8 @@ function App() {
         }
 
         const prompt = buildOpenAiPromptForImage(img, sourceImage);
+
+        console.log('prompt', prompt);
 
         try {
           const data = await OpenaiHandler({ prompt });
@@ -1252,6 +1250,7 @@ function App() {
         console.log('Generating OpenAI narratives for', imagesNeedingNarrative.length, 'images...')
         await generateOpenAiNarrativesForAllImages();
         console.log('OpenAI narratives generation completed')
+        setIsAnalyzing(false)
       })();
     }
   }, [imageDataset.images, generateOpenAiNarrativesForAllImages]);
